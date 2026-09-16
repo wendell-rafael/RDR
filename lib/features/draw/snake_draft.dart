@@ -26,7 +26,7 @@ List<Team> snakeDraft(List<Player> players, int teamCount, {int? seed}) {
     return _MutableTeam(
       id: _uuid.v4(),
       name: 'Time ${String.fromCharCode(65 + i)}',
-      color: AppTheme.teamColors[i % AppTheme.teamColors.length].value,
+      color: AppTheme.teamColors[i % AppTheme.teamColors.length].toARGB32(),
     );
   });
 

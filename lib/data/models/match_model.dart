@@ -63,6 +63,15 @@ class MatchModel extends HiveObject {
   @HiveField(10)
   String? penaltyWinnerId;
 
+  /// Identifica um confronto de ida e volta. As duas partidas do mesmo
+  /// confronto compartilham o mesmo [tieId]. Null em jogo único.
+  @HiveField(11)
+  String? tieId;
+
+  /// 1 = jogo de ida, 2 = jogo de volta. Sempre 1 em jogo único.
+  @HiveField(12)
+  int leg;
+
   MatchModel({
     required this.id,
     required this.tournamentId,
@@ -75,7 +84,11 @@ class MatchModel extends HiveObject {
     List<GoalEvent>? scorers,
     this.status = MatchStatus.pending,
     this.penaltyWinnerId,
+    this.tieId,
+    this.leg = 1,
   }) : scorers = scorers ?? [];
+
+  bool get isTwoLegged => tieId != null;
 
   String? get winnerId {
     if (penaltyWinnerId != null) return penaltyWinnerId;
@@ -97,6 +110,8 @@ class MatchModel extends HiveObject {
     List<GoalEvent>? scorers,
     MatchStatus? status,
     Object? penaltyWinnerId = _unsetSentinel,
+    String? tieId,
+    int? leg,
   }) {
     return MatchModel(
       id: id ?? this.id,
@@ -112,6 +127,8 @@ class MatchModel extends HiveObject {
       penaltyWinnerId: penaltyWinnerId == _unsetSentinel
           ? this.penaltyWinnerId
           : penaltyWinnerId as String?,
+      tieId: tieId ?? this.tieId,
+      leg: leg ?? this.leg,
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/repositories/tournament_repository.dart';
 import '../../data/models/tournament.dart';
+import '../../app/theme.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -33,14 +34,14 @@ class HomeScreen extends ConsumerWidget {
             icon: Icons.group_outlined,
             title: 'Jogadores',
             subtitle: 'Cadastrar, editar e ver estatísticas',
-            color: const Color(0xFFCC0000),
+            color: AppTheme.homeAccents[0],
             onTap: () => context.pushNamed('players'),
           ),
           _HomeCard(
             icon: Icons.shuffle_rounded,
             title: 'Novo Sorteio',
             subtitle: 'Sortear times balanceados',
-            color: const Color(0xFF8B0000),
+            color: AppTheme.homeAccents[1],
             onTap: () => context.pushNamed('draw'),
           ),
           if (activeTournament != null)
@@ -48,7 +49,7 @@ class HomeScreen extends ConsumerWidget {
               icon: Icons.emoji_events_outlined,
               title: 'Torneio em Andamento',
               subtitle: _tournamentSubtitle(activeTournament),
-              color: const Color(0xFFB71C1C),
+              color: AppTheme.homeAccents[2],
               onTap: () => context.pushNamed('tournament', pathParameters: {
                 'id': activeTournament.id,
               }),
@@ -57,7 +58,7 @@ class HomeScreen extends ConsumerWidget {
             icon: Icons.history_rounded,
             title: 'Histórico',
             subtitle: 'Estatísticas e torneios passados',
-            color: const Color(0xFF7B0000),
+            color: AppTheme.homeAccents[3],
             onTap: () => context.pushNamed('history'),
           ),
         ],
@@ -86,9 +87,9 @@ class _TournamentBanner extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cs.primaryContainer.withOpacity(0.3),
+        color: cs.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.primary.withOpacity(0.4)),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
@@ -153,7 +154,7 @@ class _HomeCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: color, size: 28),
@@ -174,7 +175,7 @@ class _HomeCard extends StatelessWidget {
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.6),
+                                .withValues(alpha: 0.6),
                           ),
                     ),
                   ],
@@ -182,7 +183,10 @@ class _HomeCard extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_right,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.4),
               ),
             ],
           ),

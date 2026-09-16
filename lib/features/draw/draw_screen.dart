@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/player.dart';
 import '../../data/repositories/player_repository.dart';
+import '../../data/services/whatsapp_export.dart';
 import '../../widgets/star_rating.dart';
 import 'draw_provider.dart';
+import 'import_names_screen.dart';
 
 class DrawScreen extends ConsumerWidget {
   const DrawScreen({super.key});
@@ -37,7 +39,16 @@ class _DrawConfigScreen extends ConsumerWidget {
     final canDraw = state.selectedPlayerIds.length >= state.teamCount;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sorteio de Times')),
+      appBar: AppBar(
+        title: const Text('Sorteio de Times'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.playlist_add),
+            tooltip: 'Importar lista de nomes',
+            onPressed: () => _importNames(context, ref),
+          ),
+        ],
+      ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -68,7 +79,24 @@ class _DrawConfigScreen extends ConsumerWidget {
               );
             }),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            value: state.twoLegged,
+            onChanged: notifier.setTwoLegged,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Ida e volta no mata-mata'),
+            subtitle: const Text(
+              'Semifinais e final em dois jogos, decididos pelo placar '
+              'agregado. Empatou no agregado, vai para os pênaltis.',
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (state.unmatchedImportedNames.isNotEmpty)
+            _UnmatchedNamesCard(
+              names: state.unmatchedImportedNames,
+              onDismiss: notifier.clearUnmatchedNames,
+            ),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -80,6 +108,12 @@ class _DrawConfigScreen extends ConsumerWidget {
               TextButton(
                 onPressed: notifier.selectAllPlayers,
                 child: const Text('Todos'),
+              ),
+              TextButton(
+                onPressed: state.selectedPlayerIds.isEmpty
+                    ? null
+                    : notifier.clearSelectedPlayers,
+                child: const Text('Nenhum'),
               ),
             ],
           ),
@@ -118,6 +152,86 @@ class _DrawConfigScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _importNames(BuildContext context, WidgetRef ref) async {
+    final result = await Navigator.of(context).push<ImportResult>(
+      MaterialPageRoute(builder: (_) => const ImportNamesScreen()),
+    );
+    if (result == null) return;
+
+    ref.read(drawProvider.notifier).applyImport(
+          matchedPlayerIds: result.playerIds,
+          unmatchedNames: result.unresolvedNames,
+        );
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${result.playerIds.length} jogadores marcados'
+          '${result.unresolvedNames.isEmpty ? '' : ', ${result.unresolvedNames.length} sem correspondência'}',
+        ),
+      ),
+    );
+  }
+}
+
+/// Lembrete dos nomes importados que não bateram com ninguém do banco.
+class _UnmatchedNamesCard extends StatelessWidget {
+  final List<String> names;
+  final VoidCallback onDismiss;
+
+  const _UnmatchedNamesCard({required this.names, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      color: cs.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.help_outline, color: cs.onErrorContainer, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Sem correspondência na lista importada',
+                    style: TextStyle(
+                      color: cs.onErrorContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  color: cs.onErrorContainer,
+                  onPressed: onDismiss,
+                  tooltip: 'Dispensar',
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              names.join(', '),
+              style: TextStyle(color: cs.onErrorContainer),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Marque na mão quem corresponde, ou cadastre em Jogadores.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: cs.onErrorContainer),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── Result ───────────────────────────────────────────────────────────────────
@@ -139,6 +253,31 @@ class _DrawResultScreen extends ConsumerWidget {
         leading: BackButton(
           onPressed: () => ref.read(drawProvider.notifier).resetToDraw(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.copy_all_outlined),
+            tooltip: 'Copiar para o WhatsApp',
+            onPressed: () => ShareActions.copy(
+              context,
+              WhatsAppExport.teams(
+                teams: teams,
+                allPlayers: players,
+                twoLegged: state.twoLegged,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Compartilhar',
+            onPressed: () => ShareActions.share(
+              WhatsAppExport.teams(
+                teams: teams,
+                allPlayers: players,
+                twoLegged: state.twoLegged,
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -205,25 +344,25 @@ class _TeamCard extends StatelessWidget {
   });
 
   static const List<Color> _palette = [
-    Color(0xFFE53935), // vermelho
-    Color(0xFFC62828), // vermelho escuro
-    Color(0xFFFF6F00), // âmbar
-    Color(0xFFF9A825), // amarelo
-    Color(0xFF2E7D32), // verde escuro
-    Color(0xFF43A047), // verde
-    Color(0xFF1565C0), // azul escuro
-    Color(0xFF1E88E5), // azul
-    Color(0xFF039BE5), // azul claro
-    Color(0xFF00838F), // ciano
-    Color(0xFF00695C), // verde água
-    Color(0xFF558B2F), // verde oliva
-    Color(0xFF6A1B9A), // roxo
-    Color(0xFFAD1457), // rosa
-    Color(0xFFEC407A), // rosa claro
-    Color(0xFF5E35B1), // índigo
-    Color(0xFF3949AB), // azul índigo
-    Color(0xFF4E342E), // marrom
-    Color(0xFF546E7A), // azul acinzentado
+    Color(0xFF4C8DFF), // azul
+    Color(0xFF2F6FE0), // azul escuro
+    Color(0xFF3FD8E0), // ciano
+    Color(0xFF19B3C4), // ciano escuro
+    Color(0xFF3DD68C), // verde
+    Color(0xFF1F9E63), // verde escuro
+    Color(0xFF9BE15D), // lima
+    Color(0xFFFFD84C), // amarelo
+    Color(0xFFFFA33C), // laranja
+    Color(0xFFFF7A2F), // laranja escuro
+    Color(0xFFFF5C5C), // vermelho
+    Color(0xFFD93A3A), // vermelho escuro
+    Color(0xFFFF6FA5), // rosa
+    Color(0xFFE0479B), // magenta
+    Color(0xFFB07CFF), // roxo
+    Color(0xFF7C5CFF), // violeta
+    Color(0xFF6E7BFF), // índigo
+    Color(0xFF9C8B7A), // bege
+    Color(0xFF7E8CA0), // cinza azulado
     Color(0xFFFFFFFF), // branco
   ];
 
@@ -257,10 +396,10 @@ class _TeamCard extends StatelessWidget {
                 itemCount: _palette.length,
                 itemBuilder: (_, i) {
                   final c = _palette[i];
-                  final isSelected = team.colorValue == c.value;
+                  final isSelected = team.colorValue == c.toARGB32();
                   return GestureDetector(
                     onTap: () {
-                      onColorChange(c.value);
+                      onColorChange(c.toARGB32());
                       Navigator.of(ctx).pop();
                     },
                     child: Container(
@@ -304,7 +443,7 @@ class _TeamCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(16)),
             ),
@@ -319,7 +458,7 @@ class _TeamCard extends StatelessWidget {
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         width: 1.5,
                       ),
                     ),
@@ -351,7 +490,7 @@ class _TeamCard extends StatelessWidget {
           ...players.map(
             (p) => ListTile(
               leading: CircleAvatar(
-                backgroundColor: color.withOpacity(0.3),
+                backgroundColor: color.withValues(alpha: 0.3),
                 child: Text(p.name[0].toUpperCase()),
               ),
               title: Text(p.name),

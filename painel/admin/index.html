@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#071410">
+<title>Administração — Racha dos Ruins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="./admin.css">
+</head>
+<body>
+<header class="board"><div class="shell"><p class="eyebrow">Área protegida</p><h1>Administração</h1><a class="back" href="/">← Voltar ao placar</a></div></header>
+
+<main class="shell">
+  <section id="auth-view" class="auth-card">
+    <p class="eyebrow">Responsáveis pelo racha</p>
+    <h2>Entre para editar</h2>
+    <p>Use uma das contas Google autorizadas. O acesso e cada gravação também são verificados pelo Firestore.</p>
+    <button id="sign-in" class="primary" type="button">Entrar com Google</button>
+    <p id="auth-message" class="message" role="status"></p>
+  </section>
+
+  <section id="admin-view" class="hidden">
+    <div class="admin-bar">
+      <div><span class="online-dot" aria-hidden="true"></span><span id="account-email"></span><small id="revision-label"></small></div>
+      <div class="admin-actions"><span id="save-status" role="status"></span><button id="sign-out" class="secondary" type="button">Sair</button><button id="save-all" class="primary" type="button" disabled>Salvar alterações</button></div>
+    </div>
+
+    <div id="conflict" class="conflict hidden" role="alert"><strong>Os dados mudaram em outro dispositivo.</strong><span>Suas alterações não foram enviadas. Recarregue a versão mais recente antes de continuar.</span><button id="reload-data" type="button">Recarregar dados</button></div>
+
+    <nav class="tabs" aria-label="Áreas de edição">
+      <button class="tab active" type="button" data-tab="players" aria-selected="true">Jogadores</button>
+      <button class="tab" type="button" data-tab="matches" aria-selected="false">Partidas</button>
+    </nav>
+
+    <section id="players-panel" class="panel" aria-labelledby="players-title">
+      <div class="panel-head"><div><p class="eyebrow">Cadastro</p><h2 id="players-title">Jogadores</h2></div><button id="add-player" class="secondary" type="button">+ Novo jogador</button></div>
+      <p class="help">Edite nome, nível e totais. As mudanças só vão para a nuvem ao usar “Salvar alterações”.</p>
+      <div id="players-editor" class="players-editor"></div>
+    </section>
+
+    <section id="matches-panel" class="panel hidden" aria-labelledby="matches-title">
+      <div class="panel-head"><div><p class="eyebrow">Correções</p><h2 id="matches-title">Partidas</h2></div><label class="select-label">Torneio<select id="tournament-select"></select></label></div>
+      <p class="help">Corrija placares, situação e autores dos gols. Em torneios encerrados, mudanças nos autores também ajustam o total geral do jogador.</p>
+      <div id="tournament-meta" class="tournament-meta"></div>
+      <div id="matches-editor"></div>
+    </section>
+  </section>
+</main>
+
+<dialog id="confirm-delete-tournament" class="confirm-dialog">
+  <form method="dialog"><p class="eyebrow">Excluir torneio</p><h2 id="delete-tournament-label">Remover este torneio?</h2><p>Ele some da lista para todo mundo assim que você usar "Salvar alterações". Essa ação não pode ser desfeita.</p><div class="dialog-actions"><button value="cancel" class="secondary">Cancelar</button><button value="confirm" class="primary danger">Excluir</button></div></form>
+</dialog>
+
+<dialog id="confirm-save" class="confirm-dialog">
+  <form method="dialog"><p class="eyebrow">Confirmar gravação</p><h2>Salvar na nuvem?</h2><p>Esta versão ficará disponível para o aplicativo e para o placar público.</p><div class="dialog-actions"><button value="cancel" class="secondary">Cancelar</button><button value="confirm" class="primary">Salvar</button></div></form>
+</dialog>
+
+<script type="module" src="./admin.js"></script>
+</body>
+</html>

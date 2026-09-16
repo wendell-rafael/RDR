@@ -8,7 +8,7 @@ part of 'goal_event.dart';
 
 class GoalEventAdapter extends TypeAdapter<GoalEvent> {
   @override
-  final int typeId = 2;
+  final typeId = 2;
 
   @override
   GoalEvent read(BinaryReader reader) {

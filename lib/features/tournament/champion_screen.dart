@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/repositories/player_repository.dart';
 import '../draw/draw_provider.dart';
 import '../tournament/tournament_provider.dart';
+import '../../app/theme.dart';
 
 class ChampionScreen extends ConsumerWidget {
   final String tournamentId;
@@ -42,8 +43,9 @@ class ChampionScreen extends ConsumerWidget {
     }
 
     final players = ref.read(playerRepositoryProvider).getAll();
-    final artilheiro =
-        artilheiroId != null ? players.where((p) => p.id == artilheiroId).firstOrNull : null;
+    final artilheiro = artilheiroId != null
+        ? players.where((p) => p.id == artilheiroId).firstOrNull
+        : null;
 
     final cs = Theme.of(context).colorScheme;
     final teamColor =
@@ -70,9 +72,9 @@ class ChampionScreen extends ConsumerWidget {
                   child: Icon(
                     Icons.emoji_events_rounded,
                     size: 120,
-                    color: Colors.amber,
+                    color: AppTheme.gold,
                     shadows: const [
-                      Shadow(color: Colors.orange, blurRadius: 24),
+                      Shadow(color: AppTheme.warning, blurRadius: 24),
                     ],
                   ),
                 ),
@@ -83,7 +85,7 @@ class ChampionScreen extends ConsumerWidget {
                   'CAMPEÃO',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         letterSpacing: 6,
-                        color: Colors.amber,
+                        color: AppTheme.gold,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -101,7 +103,10 @@ class ChampionScreen extends ConsumerWidget {
                           color: teamColor,
                           shape: BoxShape.circle,
                           boxShadow: [
-                            BoxShadow(color: teamColor.withOpacity(0.5), blurRadius: 8),
+                            BoxShadow(
+                              color: teamColor.withValues(alpha: 0.5),
+                              blurRadius: 8,
+                            ),
                           ],
                         ),
                       ),
@@ -194,7 +199,7 @@ class ChampionScreen extends ConsumerWidget {
                         label: const Text('Fechar Torneio'),
                         style: FilledButton.styleFrom(
                           minimumSize: const Size(0, 56),
-                          backgroundColor: Colors.amber,
+                          backgroundColor: AppTheme.gold,
                           foregroundColor: Colors.black,
                         ),
                       ),

@@ -18,11 +18,20 @@ class DrawState {
   final List<Team>? teams;
   final int seed;
 
+  /// Semifinais e final em ida e volta, com placar agregado.
+  final bool twoLegged;
+
+  /// Nomes da lista importada que não bateram com ninguém do banco.
+  /// Ficam só como aviso na tela — a seleção deles é manual.
+  final List<String> unmatchedImportedNames;
+
   const DrawState({
     this.teamCount = 2,
     this.selectedPlayerIds = const [],
     this.teams,
     this.seed = 0,
+    this.twoLegged = false,
+    this.unmatchedImportedNames = const [],
   });
 
   DrawState copyWith({
@@ -30,12 +39,17 @@ class DrawState {
     List<String>? selectedPlayerIds,
     List<Team>? teams,
     int? seed,
+    bool? twoLegged,
+    List<String>? unmatchedImportedNames,
   }) {
     return DrawState(
       teamCount: teamCount ?? this.teamCount,
       selectedPlayerIds: selectedPlayerIds ?? this.selectedPlayerIds,
       teams: teams ?? this.teams,
       seed: seed ?? this.seed,
+      twoLegged: twoLegged ?? this.twoLegged,
+      unmatchedImportedNames:
+          unmatchedImportedNames ?? this.unmatchedImportedNames,
     );
   }
 
@@ -45,6 +59,8 @@ class DrawState {
       selectedPlayerIds: selectedPlayerIds,
       teams: null,
       seed: seed,
+      twoLegged: twoLegged,
+      unmatchedImportedNames: unmatchedImportedNames,
     );
   }
 }
@@ -59,6 +75,28 @@ class DrawNotifier extends Notifier<DrawState> {
     return DrawState(
       selectedPlayerIds: allPlayers.map((p) => p.id).toList(),
     );
+  }
+
+  void setTwoLegged(bool value) {
+    state = state.copyWith(twoLegged: value);
+  }
+
+  /// Aplica a lista importada: só os jogadores reconhecidos ficam marcados.
+  /// Os nomes sem correspondência ficam registrados para seleção manual.
+  void applyImport({
+    required List<String> matchedPlayerIds,
+    required List<String> unmatchedNames,
+  }) {
+    state = state
+        .copyWith(
+          selectedPlayerIds: matchedPlayerIds.toSet().toList(),
+          unmatchedImportedNames: unmatchedNames,
+        )
+        .clearTeams();
+  }
+
+  void clearUnmatchedNames() {
+    state = state.copyWith(unmatchedImportedNames: const []);
   }
 
   void setTeamCount(int count) {
@@ -79,6 +117,10 @@ class DrawNotifier extends Notifier<DrawState> {
     final all =
         ref.read(playerRepositoryProvider).getAll().map((p) => p.id).toList();
     state = state.copyWith(selectedPlayerIds: all).clearTeams();
+  }
+
+  void clearSelectedPlayers() {
+    state = state.copyWith(selectedPlayerIds: const []).clearTeams();
   }
 
   void draw({int? forceSeed}) {
@@ -146,12 +188,18 @@ class DrawNotifier extends Notifier<DrawState> {
   Future<String> confirmAndCreateTournament() async {
     final teams = state.teams!;
     final format = _formatFor(teams.length);
+    final tournamentId = _uuid.v4();
     final tournament = Tournament(
-      id: _uuid.v4(),
+      id: tournamentId,
       createdAt: DateTime.now(),
       teams: teams,
       format: format,
-      matches: BracketGenerator.generate(teams, _uuid.v4()),
+      twoLegged: state.twoLegged,
+      matches: BracketGenerator.generate(
+        teams,
+        tournamentId,
+        twoLegged: state.twoLegged,
+      ),
     );
 
     final tournamentRepo = ref.read(tournamentRepositoryProvider);

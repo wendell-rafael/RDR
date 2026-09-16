@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/player.dart';
 import '../../widgets/star_rating.dart';
+import 'import_players_screen.dart';
 import 'players_provider.dart';
 
 class PlayersScreen extends ConsumerStatefulWidget {
@@ -27,6 +28,15 @@ class _PlayersScreenState extends ConsumerState<PlayersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Jogadores'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.playlist_add),
+            tooltip: 'Importar lista de nomes',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ImportPlayersScreen()),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -57,7 +67,7 @@ class _PlayersScreenState extends ConsumerState<PlayersScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.3),
+                        .withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -68,7 +78,7 @@ class _PlayersScreenState extends ConsumerState<PlayersScreen> {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.5),
+                              .withValues(alpha: 0.5),
                         ),
                   ),
                 ],
@@ -117,7 +127,7 @@ class _PlayerTile extends ConsumerWidget {
             Text(
               '${player.goals} gols · ${player.titles} título${player.titles != 1 ? 's' : ''}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurface.withOpacity(0.6),
+                    color: cs.onSurface.withValues(alpha: 0.6),
                   ),
             ),
           ],

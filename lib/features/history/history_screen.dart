@@ -5,6 +5,7 @@ import '../../data/models/tournament.dart';
 import '../../data/repositories/tournament_repository.dart';
 import '../../data/repositories/player_repository.dart';
 import '../../widgets/star_rating.dart';
+import '../../app/theme.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -108,7 +109,7 @@ class _TournamentHistoryCard extends StatelessWidget {
                 Text(
                   _fmt(t.createdAt),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: cs.onSurface.withOpacity(0.5),
+                        color: cs.onSurface.withValues(alpha: 0.5),
                       ),
                 ),
                 const Spacer(),
@@ -122,7 +123,8 @@ class _TournamentHistoryCard extends StatelessWidget {
             if (champ != null) ...[
               Row(
                 children: [
-                  const Icon(Icons.emoji_events, color: Colors.amber, size: 20),
+                  const Icon(Icons.emoji_events,
+                      color: AppTheme.gold, size: 20),
                   const SizedBox(width: 8),
                   Container(
                     width: 12,
@@ -147,7 +149,7 @@ class _TournamentHistoryCard extends StatelessWidget {
               Text(
                 'Sem campeão definido',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurface.withOpacity(0.4),
+                      color: cs.onSurface.withValues(alpha: 0.4),
                       fontStyle: FontStyle.italic,
                     ),
               ),
@@ -240,7 +242,7 @@ class _PlayersStatsTabState extends ConsumerState<_PlayersStatsTab> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.emoji_events,
-                              size: 16, color: Colors.amber),
+                              size: 16, color: AppTheme.gold),
                           const SizedBox(width: 4),
                           Text('${p.titles}'),
                           const SizedBox(width: 12),

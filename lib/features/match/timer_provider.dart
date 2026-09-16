@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import '../../data/models/app_settings.dart';
@@ -52,7 +53,16 @@ class TimerNotifier extends Notifier<TimerState> {
   TimerState build() {
     final settings = ref.watch(settingsProvider);
     ref.onDispose(() => _ticker?.cancel());
-    return _stateFromSettings(settings);
+
+    final initial = _stateFromSettings(settings);
+    // Qualquer gravação em settings recria este notifier e cancela o ticker.
+    // Religar aqui mantém o relógio andando quando se sai da tela da partida.
+    if (initial.running && !initial.finished) {
+      _startTicker();
+    } else {
+      _ticker?.cancel();
+    }
+    return initial;
   }
 
   TimerState _stateFromSettings(AppSettings s) {
@@ -109,7 +119,7 @@ class TimerNotifier extends Notifier<TimerState> {
           ),
         );
 
-    await FlutterForegroundTask.stopService();
+    if (!kIsWeb) await FlutterForegroundTask.stopService();
     state = state.copyWith(running: false);
   }
 
@@ -126,6 +136,28 @@ class TimerNotifier extends Notifier<TimerState> {
     _startTicker();
   }
 
+  /// Estende a partida em andamento. Se o tempo já tinha zerado, o cronômetro
+  /// volta a correr com o tempo extra.
+  Future<void> addMinutes(int minutes) async {
+    if (minutes == 0) return;
+    final settings = ref.read(settingsProvider);
+    final currentMs = settings.timerDurationMs ??
+        (settings.defaultMatchMinutes * 60 * 1000);
+    final newMs = currentMs + minutes * 60 * 1000;
+    if (newMs < 60 * 1000) return; // não deixa cair abaixo de 1 minuto
+
+    await ref.read(settingsProvider.notifier).update(
+          settings.copyWith(timerDurationMs: newMs),
+        );
+
+    final updated = _stateFromSettings(ref.read(settingsProvider));
+    state = updated;
+    if (updated.running) {
+      await _startForegroundService();
+      _startTicker();
+    }
+  }
+
   Future<void> stop() async {
     _ticker?.cancel();
     final settings = ref.read(settingsProvider);
@@ -139,7 +171,7 @@ class TimerNotifier extends Notifier<TimerState> {
           ),
         );
 
-    await FlutterForegroundTask.stopService();
+    if (!kIsWeb) await FlutterForegroundTask.stopService();
     state = state.copyWith(running: false, elapsed: Duration.zero);
   }
 
@@ -167,6 +199,7 @@ class TimerNotifier extends Notifier<TimerState> {
   }
 
   Future<void> _startForegroundService() async {
+    if (kIsWeb) return;
     if (await FlutterForegroundTask.isRunningService) return;
 
     await FlutterForegroundTask.startService(

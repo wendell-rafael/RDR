@@ -8,7 +8,7 @@ part of 'player.dart';
 
 class PlayerAdapter extends TypeAdapter<Player> {
   @override
-  final int typeId = 0;
+  final typeId = 0;
 
   @override
   Player read(BinaryReader reader) {
@@ -19,9 +19,9 @@ class PlayerAdapter extends TypeAdapter<Player> {
     return Player(
       id: fields[0] as String,
       name: fields[1] as String,
-      stars: fields[2] as double,
-      goals: fields[3] as int,
-      titles: fields[4] as int,
+      stars: (fields[2] as num).toDouble(),
+      goals: fields[3] == null ? 0 : (fields[3] as num).toInt(),
+      titles: fields[4] == null ? 0 : (fields[4] as num).toInt(),
       createdAt: fields[5] as DateTime,
     );
   }

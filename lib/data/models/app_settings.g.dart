@@ -6,46 +6,9 @@ part of 'app_settings.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
-class TimerDirectionAdapter extends TypeAdapter<TimerDirection> {
-  @override
-  final int typeId = 9;
-
-  @override
-  TimerDirection read(BinaryReader reader) {
-    switch (reader.readByte()) {
-      case 0:
-        return TimerDirection.countdown;
-      case 1:
-        return TimerDirection.countup;
-      default:
-        return TimerDirection.countdown;
-    }
-  }
-
-  @override
-  void write(BinaryWriter writer, TimerDirection obj) {
-    switch (obj) {
-      case TimerDirection.countdown:
-        writer.writeByte(0);
-      case TimerDirection.countup:
-        writer.writeByte(1);
-    }
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TimerDirectionAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
 class AppSettingsAdapter extends TypeAdapter<AppSettings> {
   @override
-  final int typeId = 10;
+  final typeId = 10;
 
   @override
   AppSettings read(BinaryReader reader) {
@@ -54,15 +17,17 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return AppSettings(
-      defaultMatchMinutes: fields[0] as int,
-      timerDirection: fields[1] as TimerDirection,
-      soundEnabled: fields[2] as bool,
-      vibrationEnabled: fields[3] as bool,
+      defaultMatchMinutes: fields[0] == null ? 7 : (fields[0] as num).toInt(),
+      timerDirection: fields[1] == null
+          ? TimerDirection.countdown
+          : fields[1] as TimerDirection,
+      soundEnabled: fields[2] == null ? true : fields[2] as bool,
+      vibrationEnabled: fields[3] == null ? true : fields[3] as bool,
       activeTournamentId: fields[4] as String?,
-      timerStartEpochMs: fields[5] as int?,
-      timerDurationMs: fields[6] as int?,
-      timerPausedOffsetMs: fields[7] as int?,
-      timerRunning: fields[8] as bool,
+      timerStartEpochMs: (fields[5] as num?)?.toInt(),
+      timerDurationMs: (fields[6] as num?)?.toInt(),
+      timerPausedOffsetMs: (fields[7] as num?)?.toInt(),
+      timerRunning: fields[8] == null ? false : fields[8] as bool,
       timerMatchId: fields[9] as String?,
     );
   }
@@ -100,6 +65,43 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is AppSettingsAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class TimerDirectionAdapter extends TypeAdapter<TimerDirection> {
+  @override
+  final typeId = 9;
+
+  @override
+  TimerDirection read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return TimerDirection.countdown;
+      case 1:
+        return TimerDirection.countup;
+      default:
+        return TimerDirection.countdown;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, TimerDirection obj) {
+    switch (obj) {
+      case TimerDirection.countdown:
+        writer.writeByte(0);
+      case TimerDirection.countup:
+        writer.writeByte(1);
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TimerDirectionAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

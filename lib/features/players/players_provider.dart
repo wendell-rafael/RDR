@@ -76,5 +76,49 @@ class PlayersNotifier extends Notifier<List<Player>> {
     state = _sorted(repo.getAll());
   }
 
+  /// Grava uma importação de lista de uma vez só: cria, renomeia e remove
+  /// num lote, com um único envio para a nuvem no fim.
+  Future<void> applyImport({
+    List<String> namesToCreate = const [],
+    double starsForNew = 2.5,
+    List<Player> toRename = const [],
+    List<String> idsToDelete = const [],
+  }) async {
+    final repo = ref.read(playerRepositoryProvider);
+
+    for (final name in namesToCreate) {
+      await repo.save(Player(
+        id: _uuid.v4(),
+        name: name.trim(),
+        stars: starsForNew,
+        createdAt: DateTime.now(),
+      ));
+    }
+    for (final player in toRename) {
+      await repo.save(player);
+    }
+    for (final id in idsToDelete) {
+      await repo.delete(id);
+    }
+
+    state = _sorted(repo.getAll());
+    _pushToCloud();
+  }
+
+  /// Zera gols e títulos de todos os jogadores, preservando nome e estrelas.
+  /// Não envia para a nuvem: o envio fica a cargo de "Enviar agora".
+  Future<int> resetStats() async {
+    final repo = ref.read(playerRepositoryProvider);
+    final players = repo.getAll();
+    var touched = 0;
+    for (final p in players) {
+      if (p.goals == 0 && p.titles == 0) continue;
+      await repo.save(p.copyWith(goals: 0, titles: 0));
+      touched++;
+    }
+    state = _sorted(repo.getAll());
+    return touched;
+  }
+
   Player? getById(String id) => ref.read(playerRepositoryProvider).getById(id);
 }

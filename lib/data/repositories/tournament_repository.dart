@@ -36,6 +36,13 @@ class TournamentRepository {
       _box.put(tournament.id, tournament);
 
   Future<void> delete(String id) => _box.delete(id);
+
+  /// Apaga todos os torneios. Usado pela manutenção em Configurações.
+  Future<int> clear() async {
+    final count = _box.length;
+    await _box.clear();
+    return count;
+  }
 }
 
 final tournamentRepositoryProvider = Provider<TournamentRepository>((ref) {

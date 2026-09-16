@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'data/services/cloud_auth_service.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'data/models/player.dart';
@@ -17,6 +19,7 @@ import 'data/models/app_settings.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await CloudAuthService.clearLegacyAnonymousSession();
   await Hive.initFlutter();
   Hive.registerAdapter(PlayerAdapter());
   Hive.registerAdapter(TeamAdapter());
@@ -32,23 +35,26 @@ Future<void> main() async {
   await Hive.openBox<Player>('players');
   await Hive.openBox<Tournament>('tournaments');
   await Hive.openBox<AppSettings>('settings');
+  await Hive.openBox<int>('sync_meta');
   await _seedPlayers();
-  FlutterForegroundTask.initCommunicationPort();
-  FlutterForegroundTask.init(
-    androidNotificationOptions: AndroidNotificationOptions(
-      channelId: 'rdr_timer_channel',
-      channelName: 'Timer do Racha',
-      channelDescription: 'Timer de partida em andamento',
-      channelImportance: NotificationChannelImportance.LOW,
-      priority: NotificationPriority.LOW,
-    ),
-    iosNotificationOptions: const IOSNotificationOptions(),
-    foregroundTaskOptions: ForegroundTaskOptions(
-      eventAction: ForegroundTaskEventAction.repeat(1000),
-      autoRunOnBoot: false,
-      allowWifiLock: false,
-    ),
-  );
+  if (!kIsWeb) {
+    FlutterForegroundTask.initCommunicationPort();
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'rdr_timer_channel',
+        channelName: 'Timer do Racha',
+        channelDescription: 'Timer de partida em andamento',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.repeat(1000),
+        autoRunOnBoot: false,
+        allowWifiLock: false,
+      ),
+    );
+  }
   runApp(const ProviderScope(child: RdrApp()));
 }
 

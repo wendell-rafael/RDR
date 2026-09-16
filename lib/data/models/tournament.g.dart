@@ -6,9 +6,66 @@ part of 'tournament.dart';
 // TypeAdapterGenerator
 // **************************************************************************
 
+class TournamentAdapter extends TypeAdapter<Tournament> {
+  @override
+  final typeId = 8;
+
+  @override
+  Tournament read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Tournament(
+      id: fields[0] as String,
+      createdAt: fields[1] as DateTime,
+      teams: (fields[2] as List).cast<Team>(),
+      format: fields[3] as TournamentFormat,
+      status: fields[4] == null
+          ? TournamentStatus.active
+          : fields[4] as TournamentStatus,
+      matches: (fields[5] as List?)?.cast<MatchModel>(),
+      championTeamId: fields[6] as String?,
+      twoLegged: fields[7] == null ? false : fields[7] as bool,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Tournament obj) {
+    writer
+      ..writeByte(8)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.createdAt)
+      ..writeByte(2)
+      ..write(obj.teams)
+      ..writeByte(3)
+      ..write(obj.format)
+      ..writeByte(4)
+      ..write(obj.status)
+      ..writeByte(5)
+      ..write(obj.matches)
+      ..writeByte(6)
+      ..write(obj.championTeamId)
+      ..writeByte(7)
+      ..write(obj.twoLegged);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TournamentAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
 class TournamentFormatAdapter extends TypeAdapter<TournamentFormat> {
   @override
-  final int typeId = 6;
+  final typeId = 6;
 
   @override
   TournamentFormat read(BinaryReader reader) {
@@ -53,7 +110,7 @@ class TournamentFormatAdapter extends TypeAdapter<TournamentFormat> {
 
 class TournamentStatusAdapter extends TypeAdapter<TournamentStatus> {
   @override
-  final int typeId = 7;
+  final typeId = 7;
 
   @override
   TournamentStatus read(BinaryReader reader) {
@@ -84,58 +141,6 @@ class TournamentStatusAdapter extends TypeAdapter<TournamentStatus> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is TournamentStatusAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
-class TournamentAdapter extends TypeAdapter<Tournament> {
-  @override
-  final int typeId = 8;
-
-  @override
-  Tournament read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return Tournament(
-      id: fields[0] as String,
-      createdAt: fields[1] as DateTime,
-      teams: (fields[2] as List).cast<Team>(),
-      format: fields[3] as TournamentFormat,
-      status: fields[4] as TournamentStatus,
-      matches: (fields[5] as List?)?.cast<MatchModel>(),
-      championTeamId: fields[6] as String?,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, Tournament obj) {
-    writer
-      ..writeByte(7)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.createdAt)
-      ..writeByte(2)
-      ..write(obj.teams)
-      ..writeByte(3)
-      ..write(obj.format)
-      ..writeByte(4)
-      ..write(obj.status)
-      ..writeByte(5)
-      ..write(obj.matches)
-      ..writeByte(6)
-      ..write(obj.championTeamId);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TournamentAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

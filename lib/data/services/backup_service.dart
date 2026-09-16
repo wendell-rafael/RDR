@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_ce/hive.dart';
+import 'cloud_auth_service.dart';
+import 'cloud_revision.dart';
 import '../models/goal_event.dart';
 import '../models/match_model.dart';
 import '../models/player.dart';
@@ -9,6 +11,11 @@ import '../models/tournament.dart';
 class SyncService {
   static final _doc =
       FirebaseFirestore.instance.collection('racha').doc('main');
+  static const _revisionKey = 'cloudRevision';
+
+  /// Limite para qualquer operação de rede. Sem isso, em rede ruim ou sem
+  /// permissão de INTERNET o Firestore fica pendente indefinidamente.
+  static const _timeout = Duration(seconds: 15);
 
   // ── Push ──────────────────────────────────────────────────────────────────
 
@@ -18,11 +25,28 @@ class SyncService {
     required Box<Player> players,
     required Box<Tournament> tournaments,
   }) async {
-    await _doc.set({
-      'updatedAt': FieldValue.serverTimestamp(),
-      'players': players.values.map(_playerToMap).toList(),
-      'tournaments': tournaments.values.map(_tournamentToMap).toList(),
-    });
+    final writer = CloudAuthService.requireSignedInWriter();
+    final metadata = Hive.box<int>('sync_meta');
+    final localRevision = metadata.get(_revisionKey);
+    late int savedRevision;
+
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(_doc);
+      final cloudRevision =
+          (snapshot.data()?['revision'] as num?)?.toInt() ?? 0;
+      savedRevision = nextCloudRevision(
+        localRevision: localRevision,
+        cloudRevision: cloudRevision,
+      );
+      transaction.set(_doc, {
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': writer.uid,
+        'revision': savedRevision,
+        'players': players.values.map(_playerToMap).toList(),
+        'tournaments': tournaments.values.map(_tournamentToMap).toList(),
+      });
+    }).timeout(_timeout);
+    await metadata.put(_revisionKey, savedRevision);
   }
 
   // ── Pull ──────────────────────────────────────────────────────────────────
@@ -33,29 +57,45 @@ class SyncService {
     required Box<Player> players,
     required Box<Tournament> tournaments,
   }) async {
-    final snap = await _doc.get();
+    // Source.server: sem isso um app offline leria o cache local e o
+    // resultado pareceria "nuvem vazia" em vez de erro de conexão.
+    final snap = await _doc
+        .get(const GetOptions(source: Source.server))
+        .timeout(_timeout);
     if (!snap.exists) return false;
 
     final data = snap.data()!;
+    final cloudRevision = (data['revision'] as num?)?.toInt() ?? 0;
+
+    // Valida e desserializa tudo antes de apagar os dados locais. Assim um
+    // documento incompatível ou malformado não deixa o aparelho sem backup.
+    final downloadedPlayers = ((data['players'] as List?)?.cast<Map>() ?? [])
+        .map((p) => _playerFromMap(Map<String, dynamic>.from(p)))
+        .toList();
+    final downloadedTournaments =
+        ((data['tournaments'] as List?)?.cast<Map>() ?? [])
+            .map((t) => _tournamentFromMap(Map<String, dynamic>.from(t)))
+            .toList();
 
     await players.clear();
-    for (final p in (data['players'] as List?)?.cast<Map>() ?? []) {
-      final player = _playerFromMap(Map<String, dynamic>.from(p));
+    for (final player in downloadedPlayers) {
       await players.put(player.id, player);
     }
 
     await tournaments.clear();
-    for (final t in (data['tournaments'] as List?)?.cast<Map>() ?? []) {
-      final tournament = _tournamentFromMap(Map<String, dynamic>.from(t));
+    for (final tournament in downloadedTournaments) {
       await tournaments.put(tournament.id, tournament);
     }
+    await Hive.box<int>('sync_meta').put(_revisionKey, cloudRevision);
 
     return true;
   }
 
   /// Retorna o timestamp da última sincronização, ou null se nunca sincronizou.
   static Future<DateTime?> lastSyncAt() async {
-    final snap = await _doc.get();
+    final snap = await _doc
+        .get(const GetOptions(source: Source.server))
+        .timeout(_timeout);
     if (!snap.exists) return null;
     final ts = snap.data()?['updatedAt'];
     if (ts is Timestamp) return ts.toDate();
@@ -118,6 +158,9 @@ class SyncService {
         'homeScore': m.homeScore,
         'awayScore': m.awayScore,
         'status': m.status.index,
+        'penaltyWinnerId': m.penaltyWinnerId,
+        'tieId': m.tieId,
+        'leg': m.leg,
         'scorers': m.scorers.map(_goalEventToMap).toList(),
       };
 
@@ -131,6 +174,9 @@ class SyncService {
         homeScore: m['homeScore'] as int?,
         awayScore: m['awayScore'] as int?,
         status: MatchStatus.values[m['status'] as int],
+        penaltyWinnerId: m['penaltyWinnerId'] as String?,
+        tieId: m['tieId'] as String?,
+        leg: (m['leg'] as num?)?.toInt() ?? 1,
         scorers: ((m['scorers'] as List?)?.cast<Map>() ?? [])
             .map((e) => _goalEventFromMap(Map<String, dynamic>.from(e)))
             .toList(),
@@ -142,6 +188,7 @@ class SyncService {
         'format': t.format.index,
         'status': t.status.index,
         'championTeamId': t.championTeamId,
+        'twoLegged': t.twoLegged,
         'teams': t.teams.map(_teamToMap).toList(),
         'matches': t.matches.map(_matchToMap).toList(),
       };
@@ -152,6 +199,7 @@ class SyncService {
         format: TournamentFormat.values[m['format'] as int],
         status: TournamentStatus.values[m['status'] as int],
         championTeamId: m['championTeamId'] as String?,
+        twoLegged: m['twoLegged'] as bool? ?? false,
         teams: ((m['teams'] as List?)?.cast<Map>() ?? [])
             .map((e) => _teamFromMap(Map<String, dynamic>.from(e)))
             .toList(),

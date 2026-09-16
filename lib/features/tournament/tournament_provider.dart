@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import '../../data/models/match_model.dart';
 import '../../data/models/player.dart';
@@ -8,6 +8,7 @@ import '../../data/services/backup_service.dart';
 import '../players/players_provider.dart';
 import '../../data/repositories/tournament_repository.dart';
 import 'standings_service.dart';
+import 'tie_service.dart';
 
 final activeTournamentProvider =
     NotifierProvider<TournamentNotifier, Tournament?>(TournamentNotifier.new);
@@ -29,15 +30,7 @@ class TournamentNotifier extends Notifier<Tournament?> {
         .map((m) => m.id == updated.id ? updated : m)
         .toList();
 
-    Tournament newTournament = Tournament(
-      id: tournament.id,
-      createdAt: tournament.createdAt,
-      teams: tournament.teams,
-      format: tournament.format,
-      status: tournament.status,
-      matches: matches,
-      championTeamId: tournament.championTeamId,
-    );
+    Tournament newTournament = tournament.copyWith(matches: matches);
 
     if (updated.status == MatchStatus.finished) {
       switch (updated.phase) {
@@ -47,7 +40,7 @@ class TournamentNotifier extends Notifier<Tournament?> {
           }
           break;
         case MatchPhase.playoff:
-          newTournament = _fillSemi1AfterPlayin(newTournament, updated);
+          newTournament = _fillSemi1AfterPlayin(newTournament);
           break;
         case MatchPhase.semifinal:
           if (_areSemisComplete(newTournament)) {
@@ -55,7 +48,13 @@ class TournamentNotifier extends Notifier<Tournament?> {
           }
           break;
         case MatchPhase.finalMatch:
-          newTournament = await _finalizeTournament(newTournament, updated);
+          final finalTie =
+              TieService.tiesOfPhase(newTournament, MatchPhase.finalMatch)
+                  .firstOrNull;
+          // Com ida e volta, o torneio só acaba depois do jogo de volta.
+          if (finalTie != null && TieService.isComplete(finalTie)) {
+            newTournament = await _finalizeTournament(newTournament, finalTie);
+          }
           break;
       }
     }
@@ -64,125 +63,87 @@ class TournamentNotifier extends Notifier<Tournament?> {
     state = newTournament;
   }
 
+  // ── Avanço de fase ─────────────────────────────────────────────────────────
+
   Tournament _fillKnockoutsAfterGroup(Tournament tournament) {
     final standings = StandingsService.compute(tournament);
     final n = tournament.teams.length;
-
-    var matches = tournament.matches.toList();
+    var t = tournament;
 
     if (n == 3 && standings.length >= 2) {
-      matches = matches.map((m) {
-        if (m.phase == MatchPhase.finalMatch && m.homeTeamId.isEmpty) {
-          return m.copyWith(
-            homeTeamId: standings[0].team.id,
-            awayTeamId: standings[1].team.id,
-          );
-        }
-        return m;
-      }).toList();
+      t = _assignTie(t, MatchPhase.finalMatch, 0,
+          standings[0].team.id, standings[1].team.id);
     } else if (n == 4 && standings.length >= 4) {
-      final semis = matches
-          .where((m) => m.phase == MatchPhase.semifinal)
-          .toList()
-        ..sort((a, b) => a.scheduledOrder.compareTo(b.scheduledOrder));
-      matches = matches.map((m) {
-        final idx = semis.indexWhere((s) => s.id == m.id);
-        if (idx == 0) {
-          return m.copyWith(
-            homeTeamId: standings[0].team.id,
-            awayTeamId: standings[3].team.id,
-          );
-        }
-        if (idx == 1) {
-          return m.copyWith(
-            homeTeamId: standings[1].team.id,
-            awayTeamId: standings[2].team.id,
-          );
-        }
-        return m;
-      }).toList();
+      t = _assignTie(t, MatchPhase.semifinal, 0,
+          standings[0].team.id, standings[3].team.id);
+      t = _assignTie(t, MatchPhase.semifinal, 1,
+          standings[1].team.id, standings[2].team.id);
     } else if (n == 5 && standings.length >= 5) {
-      matches = matches.map((m) {
-        if (m.phase == MatchPhase.playoff && m.homeTeamId.isEmpty) {
-          return m.copyWith(
-            homeTeamId: standings[3].team.id,
-            awayTeamId: standings[4].team.id,
-          );
-        }
-        return m;
-      }).toList();
-      final semis = matches
-          .where((m) => m.phase == MatchPhase.semifinal)
-          .toList()
-        ..sort((a, b) => a.scheduledOrder.compareTo(b.scheduledOrder));
-      if (semis.length >= 2) {
-        final semi2Id = semis[1].id;
-        matches = matches.map((m) {
-          if (m.id == semi2Id && m.homeTeamId.isEmpty) {
-            return m.copyWith(
-              homeTeamId: standings[1].team.id,
-              awayTeamId: standings[2].team.id,
-            );
-          }
-          return m;
-        }).toList();
-      }
+      t = _assignTie(t, MatchPhase.playoff, 0,
+          standings[3].team.id, standings[4].team.id);
+      // A semifinal 1 só é definida depois do play-in.
+      t = _assignTie(t, MatchPhase.semifinal, 1,
+          standings[1].team.id, standings[2].team.id);
     }
 
-    return _rebuildWith(tournament, matches);
+    return t;
   }
 
-  Tournament _fillSemi1AfterPlayin(
-      Tournament tournament, MatchModel playinMatch) {
-    final winnerId = playinMatch.winnerId;
+  Tournament _fillSemi1AfterPlayin(Tournament tournament) {
+    final playin = TieService.tiesOfPhase(tournament, MatchPhase.playoff);
+    if (playin.isEmpty) return tournament;
+
+    final winnerId = TieService.winnerId(playin.first);
     if (winnerId == null) return tournament;
 
     final standings = StandingsService.compute(tournament);
     if (standings.isEmpty) return tournament;
 
-    final firstPlaceId = standings[0].team.id;
-
-    final semis = tournament.semifinalMatches;
-    if (semis.isEmpty) return tournament;
-    final semi1Id = semis[0].id;
-
-    final matches = tournament.matches.map((m) {
-      if (m.id == semi1Id && m.homeTeamId.isEmpty) {
-        return m.copyWith(homeTeamId: firstPlaceId, awayTeamId: winnerId);
-      }
-      return m;
-    }).toList();
-
-    return _rebuildWith(tournament, matches);
+    return _assignTie(
+        tournament, MatchPhase.semifinal, 0, standings[0].team.id, winnerId);
   }
 
   bool _areSemisComplete(Tournament tournament) {
-    final semis = tournament.semifinalMatches;
-    return semis.isNotEmpty &&
-        semis.every((m) => m.status == MatchStatus.finished);
+    final semis = TieService.tiesOfPhase(tournament, MatchPhase.semifinal);
+    return semis.isNotEmpty && semis.every(TieService.isComplete);
   }
 
   Tournament _fillFinalAfterSemis(Tournament tournament) {
-    final semis = tournament.semifinalMatches;
+    final semis = TieService.tiesOfPhase(tournament, MatchPhase.semifinal);
     if (semis.length < 2) return tournament;
 
-    final winner1 = semis[0].winnerId;
-    final winner2 = semis[1].winnerId;
+    final winner1 = TieService.winnerId(semis[0]);
+    final winner2 = TieService.winnerId(semis[1]);
     if (winner1 == null || winner2 == null) return tournament;
 
-    final matches = tournament.matches.map((m) {
-      if (m.phase == MatchPhase.finalMatch && m.homeTeamId.isEmpty) {
-        return m.copyWith(homeTeamId: winner1, awayTeamId: winner2);
-      }
-      return m;
-    }).toList();
+    return _assignTie(tournament, MatchPhase.finalMatch, 0, winner1, winner2);
+  }
 
-    return _rebuildWith(tournament, matches);
+  /// Define os times do confronto [index] de uma fase, se ainda estiver vazio.
+  /// Em ida e volta, preenche os dois jogos com o mando invertido na volta.
+  Tournament _assignTie(
+    Tournament t,
+    MatchPhase phase,
+    int index,
+    String homeId,
+    String awayId,
+  ) {
+    final ties = TieService.tiesOfPhase(t, phase);
+    if (index >= ties.length) return t;
+
+    final legs = ties[index];
+    if (legs.first.homeTeamId.isNotEmpty) return t;
+
+    final assigned = TieService.assignTeams(legs, homeId, awayId);
+    final byId = {for (final m in assigned) m.id: m};
+    return t.copyWith(
+      matches: t.matches.map((m) => byId[m.id] ?? m).toList(),
+    );
   }
 
   Future<Tournament> _finalizeTournament(
-      Tournament tournament, MatchModel finalMatch) async {
-    final winnerId = finalMatch.winnerId;
+      Tournament tournament, List<MatchModel> finalTie) async {
+    final winnerId = TieService.winnerId(finalTie);
 
     if (winnerId != null) {
       final winnerTeam =
@@ -207,13 +168,8 @@ class TournamentNotifier extends Notifier<Tournament?> {
       await playerNotifier.incrementGoals(entry.key, entry.value);
     }
 
-    return Tournament(
-      id: tournament.id,
-      createdAt: tournament.createdAt,
-      teams: tournament.teams,
-      format: tournament.format,
+    return tournament.copyWith(
       status: TournamentStatus.finished,
-      matches: tournament.matches,
       championTeamId: winnerId,
     );
     // Nota: setActiveTournament(null) e sync são feitos em closeTournament(),
@@ -229,29 +185,12 @@ class TournamentNotifier extends Notifier<Tournament?> {
     ).catchError((_) {});
   }
 
-  Tournament _rebuildWith(Tournament t, List<MatchModel> matches) {
-    return Tournament(
-      id: t.id,
-      createdAt: t.createdAt,
-      teams: t.teams,
-      format: t.format,
-      status: t.status,
-      matches: matches,
-      championTeamId: t.championTeamId,
-    );
-  }
-
   Future<void> cancelTournament() async {
     final tournament = state;
     if (tournament == null) return;
 
-    final cancelled = Tournament(
-      id: tournament.id,
-      createdAt: tournament.createdAt,
-      teams: tournament.teams,
-      format: tournament.format,
+    final cancelled = tournament.copyWith(
       status: TournamentStatus.finished,
-      matches: tournament.matches,
       championTeamId: null,
     );
 

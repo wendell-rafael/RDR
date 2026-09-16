@@ -41,5 +41,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
 
 .fake
+
+# Firebase CLI local cache
+/.firebase/
+
+# Backups de dispositivo puxados manualmente (dado local do usuário, não do app)
+/backups/

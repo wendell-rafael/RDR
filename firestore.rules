@@ -1,0 +1,78 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isWriter() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && exists(/databases/$(database)/documents/rdr_writers/$(request.auth.token.email.lower()));
+    }
+
+    function isValidRachaPayload() {
+      return request.resource.data.keys().hasOnly([
+          'updatedAt', 'updatedBy', 'revision', 'players', 'tournaments'
+        ])
+        && request.resource.data.keys().hasAll([
+          'updatedAt', 'updatedBy', 'players', 'tournaments'
+        ])
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.players is list
+        && request.resource.data.players.size() <= 500
+        && request.resource.data.tournaments is list
+        && request.resource.data.tournaments.size() <= 200;
+    }
+
+    function isValidRevisionedCreate() {
+      return request.resource.data.revision is int
+        && request.resource.data.revision == 1;
+    }
+
+    function isValidRevisionedUpdate() {
+      return request.resource.data.revision is int
+        && (
+          // Primeira gravação feita por um cliente novo migra o documento.
+          (!('revision' in resource.data)
+            && request.resource.data.revision == 1)
+          // Depois da migração, nenhuma versão antiga pode sobrescrever outra.
+          || (resource.data.revision is int
+            && request.resource.data.revision == resource.data.revision + 1)
+        );
+    }
+
+    function isLegacyUpdateBeforeMigration() {
+      return !('revision' in resource.data)
+        && !('revision' in request.resource.data);
+    }
+
+    // O painel público lê somente o documento que ele exibe. Escritas exigem
+    // uma conta Google verificada cadastrada em rdr_writers/{email}.
+    match /racha/main {
+      allow read: if true;
+      allow create: if isWriter()
+        && isValidRachaPayload()
+        && isValidRevisionedCreate();
+      allow update: if isWriter()
+        && isValidRachaPayload()
+        && (isValidRevisionedUpdate() || isLegacyUpdateBeforeMigration());
+      allow delete: if false;
+    }
+
+    // Cada usuário pode consultar apenas a própria autorização. A allowlist é
+    // administrada pelo Console/Admin SDK e nunca pode ser alterada pelo app.
+    match /rdr_writers/{email} {
+      allow get: if request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == email;
+      allow list, create, update, delete: if false;
+    }
+
+    // Nada mais neste projeto é acessível pelo cliente.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -8,7 +8,7 @@ part of 'team.dart';
 
 class TeamAdapter extends TypeAdapter<Team> {
   @override
-  final int typeId = 1;
+  final typeId = 1;
 
   @override
   Team read(BinaryReader reader) {
@@ -20,8 +20,8 @@ class TeamAdapter extends TypeAdapter<Team> {
       id: fields[0] as String,
       name: fields[1] as String,
       playerIds: (fields[2] as List).cast<String>(),
-      colorValue: fields[3] as int,
-      averageStars: fields[4] as double,
+      colorValue: (fields[3] as num).toInt(),
+      averageStars: fields[4] == null ? 0.0 : (fields[4] as num).toDouble(),
     );
   }
 
