@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "racha-dos-ruins"
-  }
+  },
+  "targets": {
+    "racha-dos-ruins": {
+      "hosting": {
+        "public": [
+          "racha-dos-ruins"
+        ],
+        "admin": [
+          "racha-ruins-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
