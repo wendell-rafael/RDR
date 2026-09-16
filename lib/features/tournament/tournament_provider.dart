@@ -31,6 +31,7 @@ class TournamentNotifier extends Notifier<Tournament?> {
         .toList();
 
     Tournament newTournament = tournament.copyWith(matches: matches);
+    var justFinalized = false;
 
     if (updated.status == MatchStatus.finished) {
       switch (updated.phase) {
@@ -54,6 +55,7 @@ class TournamentNotifier extends Notifier<Tournament?> {
           // Com ida e volta, o torneio só acaba depois do jogo de volta.
           if (finalTie != null && TieService.isComplete(finalTie)) {
             newTournament = await _finalizeTournament(newTournament, finalTie);
+            justFinalized = true;
           }
           break;
       }
@@ -61,6 +63,15 @@ class TournamentNotifier extends Notifier<Tournament?> {
 
     await ref.read(tournamentRepositoryProvider).save(newTournament);
     state = newTournament;
+
+    // Envia pra nuvem assim que o torneio termina, sem depender do usuário
+    // fechar a tela de campeão (closeTournament() também tenta, como reforço).
+    if (justFinalized) {
+      SyncService.push(
+        players: Hive.box<Player>('players'),
+        tournaments: Hive.box<Tournament>('tournaments'),
+      ).catchError((_) {});
+    }
   }
 
   // ── Avanço de fase ─────────────────────────────────────────────────────────
@@ -185,16 +196,13 @@ class TournamentNotifier extends Notifier<Tournament?> {
     ).catchError((_) {});
   }
 
+  /// Cancela o torneio ativo apagando-o por completo — não deve sobrar
+  /// rastro no histórico, diferente de um torneio finalizado normalmente.
   Future<void> cancelTournament() async {
     final tournament = state;
     if (tournament == null) return;
 
-    final cancelled = tournament.copyWith(
-      status: TournamentStatus.finished,
-      championTeamId: null,
-    );
-
-    await ref.read(tournamentRepositoryProvider).save(cancelled);
+    await ref.read(tournamentRepositoryProvider).delete(tournament.id);
     await ref.read(settingsProvider.notifier).setActiveTournament(null);
     state = null;
   }

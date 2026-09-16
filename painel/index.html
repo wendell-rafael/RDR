@@ -95,7 +95,7 @@ function computeRecords(players,tournaments){
   const playerMap=new Map(players.map((p)=>[p.id,p]));
   const finished=allFinishedMatches(tournaments);
   if(!finished.length)return null;
-  let blowout=null,highScoring=null,hatTrick=null,edgeScorer=null;
+  let blowout=null,highScoring=null,hatTrick=null,edgeScorer=null,lateGoal=null;
   for(const {t,m} of finished){
     const diff=Math.abs(m.homeScore-m.awayScore);
     if(!blowout||diff>blowout.diff)blowout={diff,t,m};
@@ -104,6 +104,10 @@ function computeRecords(players,tournaments){
     const counts=new Map();
     for(const g of m.scorers??[])counts.set(g.playerId,(counts.get(g.playerId)??0)+1);
     for(const [playerId,count] of counts)if(count>=2&&(!hatTrick||count>hatTrick.count))hatTrick={count,playerId,t,m};
+    for(const g of m.scorers??[]){
+      if(typeof g.minute!=='number')continue;
+      if(!lateGoal||g.minute>lateGoal.minute)lateGoal={minute:g.minute,playerId:g.playerId,t,m};
+    }
   }
   for(const t of tournaments){
     const counts=new Map();
@@ -123,7 +127,7 @@ function computeRecords(players,tournaments){
       if(!bestStreak||next>bestStreak.count)bestStreak={count:next,playerId,lastTournament:t};
     }
   }
-  return {blowout,highScoring,hatTrick,edgeScorer,bestStreak,playerMap};
+  return {blowout,highScoring,hatTrick,edgeScorer,bestStreak,lateGoal,playerMap};
 }
 function renderRecords(players,tournaments){
   const data=computeRecords(players,tournaments);
@@ -131,7 +135,7 @@ function renderRecords(players,tournaments){
   if(!data){$('records').innerHTML='';if(heading)heading.classList.add('hidden');$('records').classList.add('hidden');return}
   if(heading)heading.classList.remove('hidden');
   $('records').classList.remove('hidden');
-  const {blowout,highScoring,hatTrick,edgeScorer,bestStreak,playerMap}=data;
+  const {blowout,highScoring,hatTrick,edgeScorer,bestStreak,lateGoal,playerMap}=data;
   const playerName=(id)=>esc(playerMap.get(id)?.name||'Jogador');
   const cards=[];
   if(blowout)cards.push({icon:'💥',label:'Maior goleada',value:`${blowout.diff} ${blowout.diff===1?'gol':'gols'} de diferença`,detail:`${teamName(blowout.t,blowout.m.homeTeamId)} ${blowout.m.homeScore} × ${blowout.m.awayScore} ${teamName(blowout.t,blowout.m.awayTeamId)} · ${fmtDate(blowout.t.createdAt)}`});
@@ -139,6 +143,7 @@ function renderRecords(players,tournaments){
   if(hatTrick)cards.push({icon:'🎩',label:'Mais gols em um jogo',value:plural(hatTrick.count,'gol','gols'),detail:`${playerName(hatTrick.playerId)} · ${fmtDate(hatTrick.t.createdAt)}`});
   if(edgeScorer)cards.push({icon:'👑',label:'Artilheiro de uma edição',value:plural(edgeScorer.count,'gol','gols'),detail:`${playerName(edgeScorer.playerId)} · torneio de ${fmtDate(edgeScorer.t.createdAt)}`});
   if(bestStreak&&bestStreak.count>1)cards.push({icon:'🔥',label:'Maior sequência de títulos',value:`${bestStreak.count} seguidos`,detail:`${playerName(bestStreak.playerId)} · até ${fmtDate(bestStreak.lastTournament.createdAt)}`});
+  if(lateGoal)cards.push({icon:'⏱️',label:'Gol mais tardio',value:`${lateGoal.minute}'`,detail:`${playerName(lateGoal.playerId)} · ${teamName(lateGoal.t,lateGoal.m.homeTeamId)} ${lateGoal.m.homeScore} × ${lateGoal.m.awayScore} ${teamName(lateGoal.t,lateGoal.m.awayTeamId)} · ${fmtDate(lateGoal.t.createdAt)}`});
   $('records').innerHTML=cards.length?cards.map((c)=>`<div class="record-card"><span class="record-icon" aria-hidden="true">${c.icon}</span><strong>${c.value}</strong><span class="record-label">${c.label}</span><span class="record-detail">${c.detail}</span></div>`).join(''):'<div class="msg">Nada registrado ainda.</div>';
 }
 
@@ -230,7 +235,23 @@ function standings(tournament){
 }
 function renderStandings(tournament){const rows=standings(tournament);if(!rows.length)return'';return `<p class="subhead">Classificação da fase de grupos</p><div class="table-scroll"><table class="standing"><thead><tr><th>#</th><th>Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td class="team-cell"><span class="dot" style="display:inline-block;background:${colorOf(r.team)}"></span> ${esc(r.team.name)}</td><td class="pts">${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf-r.ga}</td></tr>`).join('')}</tbody></table></div>`}
 
-function scorerText(events,teamId,players){const counts=new Map();for(const goal of events??[]){if(goal.teamId!==teamId)continue;const player=players.get(goal.playerId),entry=counts.get(goal.playerId)??{name:player?.name||'Jogador',count:0};entry.count++;counts.set(goal.playerId,entry)}return [...counts].map(([id,item])=>`${playerLink(id,item.name)}${item.count>1?` (${item.count})`:''}`).join(', ')}
+function scorerText(events,teamId,players){
+  const byPlayer=new Map();
+  for(const goal of events??[]){
+    if(goal.teamId!==teamId)continue;
+    const player=players.get(goal.playerId);
+    const entry=byPlayer.get(goal.playerId)??{name:player?.name||'Jogador',minutes:[]};
+    entry.minutes.push(typeof goal.minute==='number'?goal.minute:null);
+    byPlayer.set(goal.playerId,entry);
+  }
+  return [...byPlayer].map(([id,item])=>{
+    const known=item.minutes.filter((m)=>m!=null).sort((a,b)=>a-b);
+    const label=known.length&&known.length===item.minutes.length
+      ?` ${known.map((m)=>`${m}'`).join(', ')}`
+      :item.minutes.length>1?` (${item.minutes.length})`:'';
+    return `${playerLink(id,item.name)}${label}`;
+  }).join(', ');
+}
 function renderMatch(match,tournament,players){
   const team=(id)=>(tournament.teams??[]).find((item)=>item.id===id);const home=team(match.homeTeamId),away=team(match.awayTeamId);const played=match.status!==0&&match.homeScore!=null&&match.awayScore!=null;const status=['A jogar','Em andamento','Encerrado'][match.status]??'—';const phaseInfo=match.tieId?`${match.leg===2?'volta':'ida'}`:`jogo ${Number(match.scheduledOrder??0)+1}`;const homeGoals=scorerText(match.scorers,match.homeTeamId,players),awayGoals=scorerText(match.scorers,match.awayTeamId,players);const goals=[homeGoals?`<span><b>${esc(home?.name||'Time')}:</b> ${homeGoals}</span>`:'',awayGoals?`<span><b>${esc(away?.name||'Time')}:</b> ${awayGoals}</span>`:''].filter(Boolean).join(' · ');const penalty=match.penaltyWinnerId?`<span class="penalty">${esc(team(match.penaltyWinnerId)?.name||'Time')} venceu nos pênaltis</span>`:'';
   return `<div class="match"><span class="match-info">${phaseInfo}</span><span class="team-home">${esc(home?.name||'A definir')}</span><span class="score">${played?`${match.homeScore} × ${match.awayScore}`:'×'}</span><span class="team-away">${esc(away?.name||'A definir')}</span><span class="match-status ${match.status===1?'live':match.status===2?'done':''}">${status}</span>${goals||penalty?`<div class="match-extra">${goals}${goals&&penalty?' · ':''}${penalty}</div>`:''}</div>`;
@@ -243,13 +264,13 @@ function renderTournament(tournament,index,isLatest,players){const teams=tournam
 
 function positionOf(players,player,key){const index=ranking(players,key).findIndex((row)=>row.id===player.id);return index<0?'—':`${index+1}º`}
 function playerHistory(player,tournaments){return tournaments.map((tournament)=>{const teams=(tournament.teams??[]).filter((team)=>(team.playerIds??[]).includes(player.id));if(!teams.length)return null;const teamIds=new Set(teams.map((team)=>team.id));const matches=(tournament.matches??[]).filter((match)=>match.status===2&&(teamIds.has(match.homeTeamId)||teamIds.has(match.awayTeamId)));const goals=(tournament.matches??[]).reduce((sum,match)=>sum+(match.scorers??[]).filter((goal)=>goal.playerId===player.id).length,0);return{tournament,teams,matches,goals,champion:teams.some((team)=>team.id===tournament.championTeamId)}}).filter(Boolean).sort((a,b)=>Number(b.tournament.createdAt??0)-Number(a.tournament.createdAt??0))}
-function scoredMatches(player,history){const rows=[];for(const item of history){for(const match of item.tournament.matches??[]){const goals=(match.scorers??[]).filter((goal)=>goal.playerId===player.id).length;if(!goals)continue;const team=(id)=>(item.tournament.teams??[]).find((value)=>value.id===id);rows.push({date:item.tournament.createdAt,phase:phaseName[match.phase]??'Partida',home:team(match.homeTeamId)?.name||'A definir',away:team(match.awayTeamId)?.name||'A definir',homeScore:match.homeScore,awayScore:match.awayScore,goals})}}return rows.sort((a,b)=>Number(b.date??0)-Number(a.date??0))}
+function scoredMatches(player,history){const rows=[];for(const item of history){for(const match of item.tournament.matches??[]){const playerGoals=(match.scorers??[]).filter((goal)=>goal.playerId===player.id);if(!playerGoals.length)continue;const minutes=playerGoals.map((goal)=>typeof goal.minute==='number'?goal.minute:null).filter((m)=>m!=null).sort((a,b)=>a-b);const team=(id)=>(item.tournament.teams??[]).find((value)=>value.id===id);rows.push({date:item.tournament.createdAt,phase:phaseName[match.phase]??'Partida',home:team(match.homeTeamId)?.name||'A definir',away:team(match.awayTeamId)?.name||'A definir',homeScore:match.homeScore,awayScore:match.awayScore,goals:playerGoals.length,minutes:minutes.length===playerGoals.length?minutes:[]})}}return rows.sort((a,b)=>Number(b.date??0)-Number(a.date??0))}
 let activeProfilePlayerId=null;
 function openPlayerProfile(playerId){
   const players=currentData.players??[],player=players.find((item)=>item.id===playerId);if(!player)return;
   activeProfilePlayerId=playerId;
   const history=playerHistory(player,currentData.tournaments??[]),matches=history.reduce((sum,item)=>sum+item.matches.length,0),historicGoals=history.reduce((sum,item)=>sum+item.goals,0),scored=scoredMatches(player,history);
-  $('player-profile').innerHTML=`<div class="profile-head"><div><p class="eyebrow">Perfil do jogador</p><h2 class="profile-title" id="player-profile-name">${esc(player.name||'Sem nome')}</h2></div><button type="button" class="dialog-close" aria-label="Fechar perfil">×</button></div><div class="profile-stats"><div class="profile-stat"><strong>${fmtNumber.format(Number(player.goals??0))}</strong><span>Gols gerais</span></div><div class="profile-stat"><strong>${fmtNumber.format(Number(player.titles??0))}</strong><span>Títulos</span></div><div class="profile-stat"><strong>${history.length}</strong><span>Torneios</span></div><div class="profile-stat"><strong>${matches}</strong><span>Partidas</span></div></div><div class="rank-positions"><span>Artilharia: <strong>${positionOf(players,player,'goals')}</strong></span><span>Títulos: <strong>${positionOf(players,player,'titles')}</strong></span></div><button type="button" class="share-btn" id="download-card">Baixar cartão</button><p class="subhead">Histórico por torneio</p>${history.length?`<div class="profile-list">${history.map((item)=>`<div class="profile-row"><time>${fmtDate(item.tournament.createdAt)}</time><span class="profile-team">${item.teams.map((team)=>esc(team.name)).join(', ')}${item.champion?'<span class="profile-badge">campeão</span>':''}</span><span class="profile-numbers"><strong>${plural(item.goals,'gol','gols')}</strong><br><small>${plural(item.matches.length,'jogo','jogos')}</small></span></div>`).join('')}</div>`:'<div class="profile-empty">Nenhuma participação encontrada no histórico.</div>'}<p class="subhead">Partidas em que marcou</p>${scored.length?`<div class="profile-list">${scored.map((match)=>`<div class="scored-match"><div class="scored-match-main"><span>${esc(match.home)} ${match.homeScore??0} × ${match.awayScore??0} ${esc(match.away)}</span><span class="scored-match-goals">${plural(match.goals,'gol','gols')}</span></div><div class="scored-match-meta">${fmtDate(match.date)} · ${match.phase}</div></div>`).join('')}</div>`:`<div class="profile-empty">Nenhum gol identificado nas partidas sincronizadas.${Number(player.goals??0)>historicGoals?' O total geral inclui registros anteriores ao histórico disponível.':''}</div>`}`;
+  $('player-profile').innerHTML=`<div class="profile-head"><div><p class="eyebrow">Perfil do jogador</p><h2 class="profile-title" id="player-profile-name">${esc(player.name||'Sem nome')}</h2></div><button type="button" class="dialog-close" aria-label="Fechar perfil">×</button></div><div class="profile-stats"><div class="profile-stat"><strong>${fmtNumber.format(Number(player.goals??0))}</strong><span>Gols gerais</span></div><div class="profile-stat"><strong>${fmtNumber.format(Number(player.titles??0))}</strong><span>Títulos</span></div><div class="profile-stat"><strong>${history.length}</strong><span>Torneios</span></div><div class="profile-stat"><strong>${matches}</strong><span>Partidas</span></div></div><div class="rank-positions"><span>Artilharia: <strong>${positionOf(players,player,'goals')}</strong></span><span>Títulos: <strong>${positionOf(players,player,'titles')}</strong></span></div><button type="button" class="share-btn" id="download-card">Baixar cartão</button><p class="subhead">Histórico por torneio</p>${history.length?`<div class="profile-list">${history.map((item)=>`<div class="profile-row"><time>${fmtDate(item.tournament.createdAt)}</time><span class="profile-team">${item.teams.map((team)=>esc(team.name)).join(', ')}${item.champion?'<span class="profile-badge">campeão</span>':''}</span><span class="profile-numbers"><strong>${plural(item.goals,'gol','gols')}</strong><br><small>${plural(item.matches.length,'jogo','jogos')}</small></span></div>`).join('')}</div>`:'<div class="profile-empty">Nenhuma participação encontrada no histórico.</div>'}<p class="subhead">Partidas em que marcou</p>${scored.length?`<div class="profile-list">${scored.map((match)=>`<div class="scored-match"><div class="scored-match-main"><span>${esc(match.home)} ${match.homeScore??0} × ${match.awayScore??0} ${esc(match.away)}</span><span class="scored-match-goals">${match.minutes.length?match.minutes.map((m)=>`${m}'`).join(', '):plural(match.goals,'gol','gols')}</span></div><div class="scored-match-meta">${fmtDate(match.date)} · ${match.phase}</div></div>`).join('')}</div>`:`<div class="profile-empty">Nenhum gol identificado nas partidas sincronizadas.${Number(player.goals??0)>historicGoals?' O total geral inclui registros anteriores ao histórico disponível.':''}</div>`}`;
   const dialog=$('player-dialog');dialog.querySelector('.dialog-close').addEventListener('click',()=>dialog.close());if(!dialog.open)dialog.showModal();
 }
 

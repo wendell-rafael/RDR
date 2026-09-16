@@ -148,7 +148,7 @@ class _TournamentScreenState extends ConsumerState<TournamentScreen>
           builder: (ctx) => AlertDialog(
             title: const Text('Cancelar torneio'),
             content: const Text(
-                'Deseja cancelar o torneio atual? O histórico será salvo sem campeão.'),
+                'Deseja cancelar o torneio atual? Ele é apagado e não fica no histórico.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),

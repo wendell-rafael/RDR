@@ -141,11 +141,13 @@ class SyncService {
   static Map<String, dynamic> _goalEventToMap(GoalEvent g) => {
         'playerId': g.playerId,
         'teamId': g.teamId,
+        'minute': g.minute,
       };
 
   static GoalEvent _goalEventFromMap(Map<String, dynamic> m) => GoalEvent(
         playerId: m['playerId'] as String,
         teamId: m['teamId'] as String,
+        minute: (m['minute'] as num?)?.toInt(),
       );
 
   static Map<String, dynamic> _matchToMap(MatchModel m) => {

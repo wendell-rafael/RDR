@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_ce/hive.dart';
+import '../../data/models/player.dart';
 import '../../data/models/team.dart';
 import '../../data/models/tournament.dart';
 import '../../data/repositories/tournament_repository.dart';
 import '../../data/repositories/player_repository.dart';
+import '../../data/services/backup_service.dart';
+import '../../widgets/dialog_action.dart';
 import '../../widgets/star_rating.dart';
 import '../../app/theme.dart';
 
@@ -82,7 +86,7 @@ class _TournamentsTab extends StatelessWidget {
   }
 }
 
-class _TournamentHistoryCard extends StatelessWidget {
+class _TournamentHistoryCard extends ConsumerWidget {
   final Tournament t;
 
   const _TournamentHistoryCard({required this.t});
@@ -93,8 +97,50 @@ class _TournamentHistoryCard extends StatelessWidget {
   Team? get champion =>
       t.teams.where((tm) => tm.id == t.championTeamId).firstOrNull;
 
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Excluir torneio'),
+            content: Text(
+              'Apagar o torneio de ${_fmt(t.createdAt)}? Ele some do '
+              'histórico do aparelho e da nuvem, sem volta.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Não'),
+              ),
+              DialogAction(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(ctx).colorScheme.error,
+                  ),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Excluir'),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+
+    await ref.read(tournamentRepositoryProvider).delete(t.id);
+    ref.invalidate(tournamentRepositoryProvider);
+    SyncService.push(
+      players: Hive.box<Player>('players'),
+      tournaments: Hive.box<Tournament>('tournaments'),
+    ).catchError((_) {});
+
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Torneio excluído.')),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     final champ = champion;
 
@@ -116,6 +162,12 @@ class _TournamentHistoryCard extends StatelessWidget {
                 Text(
                   '${t.teams.length} times',
                   style: Theme.of(context).textTheme.bodySmall,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  tooltip: 'Excluir torneio',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _delete(context, ref),
                 ),
               ],
             ),

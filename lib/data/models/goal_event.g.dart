@@ -19,17 +19,20 @@ class GoalEventAdapter extends TypeAdapter<GoalEvent> {
     return GoalEvent(
       playerId: fields[0] as String,
       teamId: fields[1] as String,
+      minute: (fields[2] as num?)?.toInt(),
     );
   }
 
   @override
   void write(BinaryWriter writer, GoalEvent obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.playerId)
       ..writeByte(1)
-      ..write(obj.teamId);
+      ..write(obj.teamId)
+      ..writeByte(2)
+      ..write(obj.minute);
   }
 
   @override

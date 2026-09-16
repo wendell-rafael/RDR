@@ -136,10 +136,12 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
 
     final current = _readMatch();
     if (current == null) return;
+    // Minuto corrido desde o início da partida, pro histórico do gol.
+    final minute = ref.read(timerProvider).elapsed.inMinutes;
     await _persist(current.copyWith(
       scorers: [
         ...current.scorers,
-        GoalEvent(playerId: scorer.id, teamId: teamId),
+        GoalEvent(playerId: scorer.id, teamId: teamId, minute: minute),
       ],
     ));
   }
