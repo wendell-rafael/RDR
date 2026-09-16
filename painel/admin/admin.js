@@ -190,9 +190,9 @@ function renderMatches() {
       <div class="match-head"><strong>${phaseNames[match.phase] ?? 'Partida'}</strong><span>${gameLabel}</span></div>
       <div class="score-editor">
         <span class="team-name home">${esc(home?.name ?? 'A definir')}</span>
-        <label>Placar<input type="number" min="0" step="1" value="${match.homeScore ?? 0}" data-match-field="homeScore"></label>
+        <label>Placar<input type="number" min="0" step="1" value="${Number(match.homeScore ?? 0)}" data-match-field="homeScore"></label>
         <span class="versus">×</span>
-        <label>Placar<input type="number" min="0" step="1" value="${match.awayScore ?? 0}" data-match-field="awayScore"></label>
+        <label>Placar<input type="number" min="0" step="1" value="${Number(match.awayScore ?? 0)}" data-match-field="awayScore"></label>
         <span class="team-name">${esc(away?.name ?? 'A definir')}</span>
         <label>Situação<select data-match-field="status"><option value="0"${match.status === 0 ? ' selected' : ''}>A jogar</option><option value="1"${match.status === 1 ? ' selected' : ''}>Em andamento</option><option value="2"${match.status === 2 ? ' selected' : ''}>Encerrado</option></select></label>
       </div>
@@ -286,12 +286,17 @@ async function saveAll() {
         players: draft.players,
         tournaments: draft.tournaments,
       });
+      // Espelho público: sem nível/estrelas dos jogadores nem a média do
+      // time (derivada do nível — vazaria a mesma informação privada).
       transaction.set(publicRef, {
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid,
         revision: nextRevision,
         players: draft.players.map(({ stars, ...rest }) => rest),
-        tournaments: draft.tournaments,
+        tournaments: draft.tournaments.map((t) => ({
+          ...t,
+          teams: (t.teams ?? []).map(({ averageStars, ...rest }) => rest),
+        })),
       });
     });
     loadedRevision = nextRevision;

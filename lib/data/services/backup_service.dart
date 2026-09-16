@@ -42,22 +42,22 @@ class SyncService {
         localRevision: localRevision,
         cloudRevision: cloudRevision,
       );
-      final tournamentMaps =
-          tournaments.values.map(_tournamentToMap).toList();
       transaction.set(_doc, {
         'updatedAt': FieldValue.serverTimestamp(),
         'updatedBy': writer.uid,
         'revision': savedRevision,
         'players': players.values.map(_playerToMap).toList(),
-        'tournaments': tournamentMaps,
+        'tournaments': tournaments.values.map(_tournamentToMap).toList(),
       });
-      // Espelho público, sem o nível/estrelas de cada jogador.
+      // Espelho público: sem o nível/estrelas de cada jogador nem a média
+      // do time (derivada do nível — vazaria a mesma informação privada).
       transaction.set(_publicDoc, {
         'updatedAt': FieldValue.serverTimestamp(),
         'updatedBy': writer.uid,
         'revision': savedRevision,
         'players': players.values.map(_playerToPublicMap).toList(),
-        'tournaments': tournamentMaps,
+        'tournaments':
+            tournaments.values.map(_tournamentToPublicMap).toList(),
       });
     }).timeout(_timeout);
     await metadata.put(_revisionKey, savedRevision);
@@ -161,6 +161,16 @@ class SyncService {
         'averageStars': t.averageStars,
       };
 
+  /// Igual a [_teamToMap], mas sem `averageStars` — deriva do nível/estrelas
+  /// (privado) de cada jogador do time, então não pode ir pro espelho
+  /// público mesmo indiretamente.
+  static Map<String, dynamic> _teamToPublicMap(Team t) => {
+        'id': t.id,
+        'name': t.name,
+        'playerIds': t.playerIds,
+        'colorValue': t.colorValue,
+      };
+
   static Team _teamFromMap(Map<String, dynamic> m) => Team(
         id: m['id'] as String,
         name: m['name'] as String,
@@ -223,6 +233,19 @@ class SyncService {
         'championTeamId': t.championTeamId,
         'twoLegged': t.twoLegged,
         'teams': t.teams.map(_teamToMap).toList(),
+        'matches': t.matches.map(_matchToMap).toList(),
+      };
+
+  /// Igual a [_tournamentToMap], mas com times sem `averageStars` — usado
+  /// só na gravação do espelho público (/racha/public).
+  static Map<String, dynamic> _tournamentToPublicMap(Tournament t) => {
+        'id': t.id,
+        'createdAt': t.createdAt.millisecondsSinceEpoch,
+        'format': t.format.index,
+        'status': t.status.index,
+        'championTeamId': t.championTeamId,
+        'twoLegged': t.twoLegged,
+        'teams': t.teams.map(_teamToPublicMap).toList(),
         'matches': t.matches.map(_matchToMap).toList(),
       };
 
