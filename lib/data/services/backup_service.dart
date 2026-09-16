@@ -11,6 +11,10 @@ import '../models/tournament.dart';
 class SyncService {
   static final _doc =
       FirebaseFirestore.instance.collection('racha').doc('main');
+  // Espelho público sem o nível/estrelas — é o que o site lê. O documento
+  // 'main' completo só pode ser lido por quem está autenticado como writer.
+  static final _publicDoc =
+      FirebaseFirestore.instance.collection('racha').doc('public');
   static const _revisionKey = 'cloudRevision';
 
   /// Limite para qualquer operação de rede. Sem isso, em rede ruim ou sem
@@ -38,12 +42,22 @@ class SyncService {
         localRevision: localRevision,
         cloudRevision: cloudRevision,
       );
+      final tournamentMaps =
+          tournaments.values.map(_tournamentToMap).toList();
       transaction.set(_doc, {
         'updatedAt': FieldValue.serverTimestamp(),
         'updatedBy': writer.uid,
         'revision': savedRevision,
         'players': players.values.map(_playerToMap).toList(),
-        'tournaments': tournaments.values.map(_tournamentToMap).toList(),
+        'tournaments': tournamentMaps,
+      });
+      // Espelho público, sem o nível/estrelas de cada jogador.
+      transaction.set(_publicDoc, {
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': writer.uid,
+        'revision': savedRevision,
+        'players': players.values.map(_playerToPublicMap).toList(),
+        'tournaments': tournamentMaps,
       });
     }).timeout(_timeout);
     await metadata.put(_revisionKey, savedRevision);
@@ -53,10 +67,15 @@ class SyncService {
 
   /// Baixa os dados da nuvem e substitui os locais.
   /// Retorna [false] se ainda não houver dados na nuvem.
+  ///
+  /// O documento completo (com o nível/estrelas de cada jogador) só pode ser
+  /// lido por um writer autenticado — por isso exige login, diferente do
+  /// espelho público que o site usa.
   static Future<bool> pull({
     required Box<Player> players,
     required Box<Tournament> tournaments,
   }) async {
+    CloudAuthService.requireSignedInWriter();
     // Source.server: sem isso um app offline leria o cache local e o
     // resultado pareceria "nuvem vazia" em vez de erro de conexão.
     final snap = await _doc
@@ -92,8 +111,10 @@ class SyncService {
   }
 
   /// Retorna o timestamp da última sincronização, ou null se nunca sincronizou.
+  /// Lê do espelho público — assim qualquer usuário vê a última sincronização
+  /// sem precisar estar logado como writer.
   static Future<DateTime?> lastSyncAt() async {
-    final snap = await _doc
+    final snap = await _publicDoc
         .get(const GetOptions(source: Source.server))
         .timeout(_timeout);
     if (!snap.exists) return null;
@@ -108,6 +129,16 @@ class SyncService {
         'id': p.id,
         'name': p.name,
         'stars': p.stars,
+        'goals': p.goals,
+        'titles': p.titles,
+        'createdAt': p.createdAt.millisecondsSinceEpoch,
+      };
+
+  /// Igual a [_playerToMap], mas sem o nível/estrelas — é o que vai pro
+  /// espelho público (/racha/public), lido por qualquer um sem autenticação.
+  static Map<String, dynamic> _playerToPublicMap(Player p) => {
+        'id': p.id,
+        'name': p.name,
         'goals': p.goals,
         'titles': p.titles,
         'createdAt': p.createdAt.millisecondsSinceEpoch,

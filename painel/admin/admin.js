@@ -19,6 +19,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const mainRef = doc(db, 'racha', 'main');
+// Espelho público sem o nível/estrelas — é o que o site lê. Sempre gravado
+// junto com o documento completo pra não ficar desatualizado.
+const publicRef = doc(db, 'racha', 'public');
 
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({
@@ -281,6 +284,13 @@ async function saveAll() {
         updatedBy: currentUser.uid,
         revision: nextRevision,
         players: draft.players,
+        tournaments: draft.tournaments,
+      });
+      transaction.set(publicRef, {
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser.uid,
+        revision: nextRevision,
+        players: draft.players.map(({ stars, ...rest }) => rest),
         tournaments: draft.tournaments,
       });
     });

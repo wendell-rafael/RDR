@@ -48,16 +48,28 @@ service cloud.firestore {
         && !('revision' in request.resource.data);
     }
 
-    // O painel público lê somente o documento que ele exibe. Escritas exigem
-    // uma conta Google verificada cadastrada em rdr_writers/{email}.
+    // Documento completo (inclui o nível/estrelas de cada jogador, usado só
+    // para balancear os sorteios). Não é público: só quem está autenticado
+    // como writer lê ou grava aqui — o app usa isso pra sincronizar e
+    // restaurar o aparelho.
     match /racha/main {
-      allow read: if true;
+      allow read: if isWriter();
       allow create: if isWriter()
         && isValidRachaPayload()
         && isValidRevisionedCreate();
       allow update: if isWriter()
         && isValidRachaPayload()
         && (isValidRevisionedUpdate() || isLegacyUpdateBeforeMigration());
+      allow delete: if false;
+    }
+
+    // Espelho público de /racha/main sem o nível/estrelas dos jogadores —
+    // é isso que o placar do site lê. Sempre escrito junto com o documento
+    // completo, então não precisa da própria trava de revisão: quem garante
+    // consistência é a transação que grava os dois de uma vez.
+    match /racha/public {
+      allow read: if true;
+      allow create, update: if isWriter() && isValidRachaPayload();
       allow delete: if false;
     }
 
