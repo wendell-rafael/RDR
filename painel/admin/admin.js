@@ -1,5 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js';
 import {
+  connectAuthEmulator,
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -7,6 +8,7 @@ import {
   signOut,
 } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js';
 import {
+  connectFirestoreEmulator,
   doc,
   getDoc,
   getFirestore,
@@ -14,10 +16,19 @@ import {
   serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
+import { initCheckinAdmin } from './checkin-admin.js';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// Contra o emulador nada fala com a nuvem — dá pra treinar o painel sem risco
+// de encostar nos dados de verdade.
+export const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+if (LOCAL) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+}
 const mainRef = doc(db, 'racha', 'main');
 // Espelho público sem o nível/estrelas — é o que o site lê. Sempre gravado
 // junto com o documento completo pra não ficar desatualizado.
@@ -29,6 +40,31 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({
 }[char]));
 const formatDate = (value) => new Date(value).toLocaleDateString('pt-BR');
 const phaseNames = ['Fase de grupos', 'Mata-mata', 'Final', 'Semifinal'];
+
+// Gols e títulos nunca são digitados à mão — sempre calculados a partir do
+// histórico de torneios (time campeão + artilheiros de partidas encerradas).
+// Editar isso manualmente já causou jogador com título de torneio que nunca
+// ganhou; melhor não dar a opção de errar.
+function computeStats(tournaments) {
+  const titles = new Map();
+  const goals = new Map();
+  for (const tournament of tournaments) {
+    if (tournament.championTeamId) {
+      const champion = (tournament.teams ?? [])
+        .find((team) => team.id === tournament.championTeamId);
+      for (const playerId of champion?.playerIds ?? []) {
+        titles.set(playerId, (titles.get(playerId) ?? 0) + 1);
+      }
+    }
+    for (const match of tournament.matches ?? []) {
+      if (match.status !== 2) continue; // 2 = Encerrado
+      for (const goal of match.scorers ?? []) {
+        goals.set(goal.playerId, (goals.get(goal.playerId) ?? 0) + 1);
+      }
+    }
+  }
+  return { titles, goals };
+}
 
 let currentUser = null;
 let loadedRevision = 0;
@@ -89,12 +125,13 @@ async function loadData() {
 function renderPlayers() {
   const players = draft.players.slice().sort((a, b) =>
     String(a.name ?? '').localeCompare(String(b.name ?? ''), 'pt-BR'));
+  const stats = computeStats(draft.tournaments);
   $('players-editor').innerHTML = players.length ? players.map((player) => `
     <div class="player-row" data-player-id="${esc(player.id)}">
       <label>Nome<input data-player-field="name" value="${esc(player.name ?? '')}" maxlength="60" autocomplete="off"></label>
       <label>Nível<input data-player-field="stars" type="number" value="${Number(player.stars ?? 0)}" min="0" max="5" step="0.5"></label>
-      <label>Gols<input data-player-field="goals" type="number" value="${Number(player.goals ?? 0)}" min="0" step="1"></label>
-      <label>Títulos<input data-player-field="titles" type="number" value="${Number(player.titles ?? 0)}" min="0" step="1"></label>
+      <label>Gols<output>${stats.goals.get(player.id) ?? 0}</output></label>
+      <label>Títulos<output>${stats.titles.get(player.id) ?? 0}</output></label>
     </div>`).join('') : '<div class="empty">Nenhum jogador cadastrado.</div>';
 }
 
@@ -210,22 +247,23 @@ function selectedMatch(matchId) {
 }
 
 function updateScorer(match, tournament, playerId, teamId, nextCount) {
-  const previousCount = scorerCount(match, playerId, teamId);
   match.scorers = (match.scorers ?? []).filter((goal) =>
     !(goal.playerId === playerId && goal.teamId === teamId));
   for (let index = 0; index < nextCount; index++) {
     match.scorers.push({ playerId, teamId });
   }
-  if (tournament.status === 1) {
-    const player = draft.players.find((item) => item.id === playerId);
-    if (player) {
-      player.goals = Math.max(0, Number(player.goals ?? 0) + nextCount - previousCount);
-      for (const row of $('players-editor').querySelectorAll('[data-player-id]')) {
-        if (row.dataset.playerId !== playerId) continue;
-        const goals = row.querySelector('[data-player-field="goals"]');
-        if (goals) goals.value = String(player.goals);
-      }
-    }
+  // Gol exibido é sempre recalculado do zero em renderPlayers() a partir
+  // dos artilheiros — nada aqui precisa tocar player.goals diretamente.
+  renderPlayers();
+}
+
+// Sobrescreve gols/títulos de todo mundo com o valor calculado do
+// histórico, apagando qualquer resquício de edição manual antiga.
+function reconcileStats() {
+  const stats = computeStats(draft.tournaments);
+  for (const player of draft.players) {
+    player.goals = stats.goals.get(player.id) ?? 0;
+    player.titles = stats.titles.get(player.id) ?? 0;
   }
 }
 
@@ -238,7 +276,6 @@ function validateDraft() {
     if (names.has(normalized)) throw new Error(`Há mais de um jogador chamado ${name}.`);
     names.add(normalized);
     if (!Number.isFinite(player.stars) || player.stars < 0 || player.stars > 5) throw new Error(`O nível de ${name} deve ficar entre 0 e 5.`);
-    if (!Number.isInteger(player.goals) || player.goals < 0 || !Number.isInteger(player.titles) || player.titles < 0) throw new Error(`Gols e títulos de ${name} precisam ser números inteiros positivos.`);
   }
   for (const tournament of draft.tournaments) {
     const team = (id) => (tournament.teams ?? []).find((item) => item.id === id);
@@ -263,6 +300,7 @@ async function askSaveConfirmation() {
 
 async function saveAll() {
   if (!dirty || !currentUser) return;
+  reconcileStats();
   try {
     validateDraft();
   } catch (error) {
@@ -332,7 +370,10 @@ $('matches-editor').addEventListener('input', (event) => {
   const { tournament, match } = selectedMatch(card.dataset.matchId);
   if (!match) return;
   const field = event.target.dataset.matchField;
-  if (field) match[field] = Number(event.target.value);
+  if (field) {
+    match[field] = Number(event.target.value);
+    if (field === 'status') renderPlayers();
+  }
   if (event.target.dataset.scorerPlayer) {
     const rawCount = Number(event.target.value);
     const nextCount = Number.isFinite(rawCount)
@@ -383,6 +424,7 @@ $('tournament-meta').addEventListener('change', (event) => {
     tournament.status = Number(event.target.value);
   } else if (field === 'championTeamId') {
     tournament.championTeamId = event.target.value || null;
+    renderPlayers();
   }
   setDirty();
 });
@@ -413,6 +455,7 @@ document.querySelectorAll('[data-tab]').forEach((button) => {
     });
     $('players-panel').classList.toggle('hidden', button.dataset.tab !== 'players');
     $('matches-panel').classList.toggle('hidden', button.dataset.tab !== 'matches');
+    $('checkin-panel').classList.toggle('hidden', button.dataset.tab !== 'checkin');
   });
 });
 
@@ -455,6 +498,7 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
     showAuthorized(user);
+    initCheckinAdmin(app, db, user);
     await loadData();
   } catch (error) {
     if (auth.currentUser) await signOut(auth);
