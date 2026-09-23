@@ -28,6 +28,7 @@ class SyncService {
   static Future<void> push({
     required Box<Player> players,
     required Box<Tournament> tournaments,
+    bool force = false,
   }) async {
     final writer = CloudAuthService.requireSignedInWriter();
     final metadata = Hive.box<int>('sync_meta');
@@ -38,10 +39,14 @@ class SyncService {
       final snapshot = await transaction.get(_doc);
       final cloudRevision =
           (snapshot.data()?['revision'] as num?)?.toInt() ?? 0;
-      savedRevision = nextCloudRevision(
-        localRevision: localRevision,
-        cloudRevision: cloudRevision,
-      );
+      // force: usado quando o usuário já conferiu a nuvem manualmente e quer
+      // que os dados deste aparelho prevaleçam mesmo com revisão divergente.
+      savedRevision = force
+          ? cloudRevision + 1
+          : nextCloudRevision(
+              localRevision: localRevision,
+              cloudRevision: cloudRevision,
+            );
       transaction.set(_doc, {
         'updatedAt': FieldValue.serverTimestamp(),
         'updatedBy': writer.uid,

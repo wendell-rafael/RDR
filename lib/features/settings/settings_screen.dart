@@ -275,7 +275,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _doSend(BuildContext context) async {
+  Future<void> _doSend(BuildContext context, {bool force = false}) async {
     final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
@@ -294,6 +294,7 @@ class SettingsScreen extends ConsumerWidget {
       await SyncService.push(
         players: Hive.box<Player>('players'),
         tournaments: Hive.box<Tournament>('tournaments'),
+        force: force,
       );
       if (context.mounted) Navigator.of(context).pop();
       messenger.showSnackBar(
@@ -301,12 +302,34 @@ class SettingsScreen extends ConsumerWidget {
       );
     } on CloudDataChangedException catch (e) {
       if (context.mounted) Navigator.of(context).pop();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          duration: const Duration(seconds: 7),
+      if (!context.mounted) return;
+      final overwrite = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Conflito com a nuvem'),
+          content: Text(
+            '${e.toString()}\n\n'
+            'Se você já conferiu e tem certeza que os dados deste '
+            'aparelho são os mais atuais, pode enviar mesmo assim — '
+            'isso substitui o que está na nuvem.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            DialogAction(
+              child: FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Enviar mesmo assim'),
+              ),
+            ),
+          ],
         ),
       );
+      if (overwrite == true && context.mounted) {
+        await _doSend(context, force: true);
+      }
     } catch (e) {
       if (context.mounted) Navigator.of(context).pop();
       messenger.showSnackBar(
