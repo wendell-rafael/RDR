@@ -219,19 +219,33 @@ function renderMatches() {
     Number(a.phase ?? 0) - Number(b.phase ?? 0)
       || Number(a.scheduledOrder ?? 0) - Number(b.scheduledOrder ?? 0)
       || Number(a.leg ?? 1) - Number(b.leg ?? 1));
+  const teamOptions = (selectedId) => (tournament.teams ?? []).map((t) =>
+    `<option value="${esc(t.id)}"${t.id === selectedId ? ' selected' : ''}>${esc(t.name)}</option>`).join('');
+
   $('matches-editor').innerHTML = matches.length ? matches.map((match) => {
     const home = team(match.homeTeamId);
     const away = team(match.awayTeamId);
     const gameLabel = match.tieId ? (match.leg === 2 ? 'Volta' : 'Ida') : `Jogo ${Number(match.scheduledOrder ?? 0) + 1}`;
+    // Só mata-mata pode ir a pênaltis. Fica sempre visível nessas fases (sem
+    // depender do placar) pra não precisar redesenhar o card a cada dígito
+    // digitado no placar.
+    const knockout = match.phase !== 0;
+    const penaltyField = knockout ? `
+      <label class="match-full">Venceu nos pênaltis<select data-match-field="penaltyWinnerId">
+        <option value=""${match.penaltyWinnerId ? '' : ' selected'}>Nenhum / não foi a pênaltis</option>
+        <option value="${esc(match.homeTeamId)}"${match.penaltyWinnerId === match.homeTeamId ? ' selected' : ''}>${esc(home?.name ?? 'Mandante')}</option>
+        <option value="${esc(match.awayTeamId)}"${match.penaltyWinnerId === match.awayTeamId ? ' selected' : ''}>${esc(away?.name ?? 'Visitante')}</option>
+      </select></label>` : '';
     return `<article class="match-card" data-match-id="${esc(match.id)}">
       <div class="match-head"><strong>${phaseNames[match.phase] ?? 'Partida'}</strong><span>${gameLabel}</span></div>
       <div class="score-editor">
-        <span class="team-name home">${esc(home?.name ?? 'A definir')}</span>
+        <label class="team-name home">Mandante<select data-match-field="homeTeamId">${teamOptions(match.homeTeamId)}</select></label>
         <label>Placar<input type="number" min="0" step="1" value="${Number(match.homeScore ?? 0)}" data-match-field="homeScore"></label>
         <span class="versus">×</span>
         <label>Placar<input type="number" min="0" step="1" value="${Number(match.awayScore ?? 0)}" data-match-field="awayScore"></label>
-        <span class="team-name">${esc(away?.name ?? 'A definir')}</span>
-        <label>Situação<select data-match-field="status"><option value="0"${match.status === 0 ? ' selected' : ''}>A jogar</option><option value="1"${match.status === 1 ? ' selected' : ''}>Em andamento</option><option value="2"${match.status === 2 ? ' selected' : ''}>Encerrado</option></select></label>
+        <label class="team-name">Visitante<select data-match-field="awayTeamId">${teamOptions(match.awayTeamId)}</select></label>
+        <label class="match-full">Situação<select data-match-field="status"><option value="0"${match.status === 0 ? ' selected' : ''}>A jogar</option><option value="1"${match.status === 1 ? ' selected' : ''}>Em andamento</option><option value="2"${match.status === 2 ? ' selected' : ''}>Encerrado</option></select></label>
+        ${penaltyField}
       </div>
       <div class="scorers-editor">${scorerEditor(home, match)}${scorerEditor(away, match)}</div>
     </article>`;
@@ -371,8 +385,17 @@ $('matches-editor').addEventListener('input', (event) => {
   if (!match) return;
   const field = event.target.dataset.matchField;
   if (field) {
-    match[field] = Number(event.target.value);
-    if (field === 'status') renderPlayers();
+    if (field === 'homeTeamId' || field === 'awayTeamId') {
+      match[field] = event.target.value;
+      renderMatches();
+      renderPlayers();
+    } else if (field === 'penaltyWinnerId') {
+      match[field] = event.target.value || null;
+      renderPlayers();
+    } else {
+      match[field] = Number(event.target.value);
+      if (field === 'status') renderPlayers();
+    }
   }
   if (event.target.dataset.scorerPlayer) {
     const rawCount = Number(event.target.value);
