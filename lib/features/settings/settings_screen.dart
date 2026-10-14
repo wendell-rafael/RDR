@@ -156,6 +156,19 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
+            icon: const Icon(Icons.calculate_outlined),
+            label: const Text('Recalcular gols e títulos'),
+            onPressed: () => _doRecompute(context, ref),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Refaz a contagem de gols e títulos a partir do histórico de '
+            'torneios salvo neste aparelho. Use se algum número parecer '
+            'errado.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
             icon: const Icon(Icons.restart_alt),
             label: const Text('Zerar torneios e estatísticas'),
             style: OutlinedButton.styleFrom(
@@ -190,6 +203,24 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _doRecompute(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final tournaments = ref.read(tournamentRepositoryProvider).getAll();
+    final touched = await ref
+        .read(playersProvider.notifier)
+        .recomputeStats(tournaments);
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(touched > 0
+            ? '$touched jogadores corrigidos. Use "Enviar agora" pra levar '
+                'a correção pra nuvem.'
+            : 'Nada pra corrigir — já estava certo.'),
+        duration: const Duration(seconds: 6),
       ),
     );
   }

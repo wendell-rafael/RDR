@@ -51,8 +51,11 @@ class _TournamentScreenState extends ConsumerState<TournamentScreen>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Se o torneio já foi finalizado, vai para a tela de campeão
-    if (tournament.status == TournamentStatus.finished) {
+    // Se o torneio já foi finalizado, vai para a tela de campeão. Só quando
+    // esta tela está visível: ela fica embaixo da de campeão na pilha, e
+    // redirecionar de lá derrubaria a partida aberta por cima (corrigir final).
+    if (tournament.status == TournamentStatus.finished &&
+        (ModalRoute.of(context)?.isCurrent ?? true)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) {
           context.goNamed('champion', pathParameters: {'id': tournament.id});
@@ -71,6 +74,11 @@ class _TournamentScreenState extends ConsumerState<TournamentScreen>
               const PopupMenuItem(
                   value: 'share', child: Text('Compartilhar tabela')),
               const PopupMenuDivider(),
+              CheckedPopupMenuItem(
+                value: 'test',
+                checked: tournament.isTest,
+                child: const Text('Torneio de teste'),
+              ),
               const PopupMenuItem(
                   value: 'cancel', child: Text('Cancelar torneio')),
             ],
@@ -87,6 +95,12 @@ class _TournamentScreenState extends ConsumerState<TournamentScreen>
                 } else {
                   await ShareActions.share(message);
                 }
+                return;
+              }
+              if (v == 'test') {
+                await ref
+                    .read(activeTournamentProvider.notifier)
+                    .setTest(!tournament.isTest);
                 return;
               }
               if (v == 'cancel') {
@@ -112,6 +126,7 @@ class _TournamentScreenState extends ConsumerState<TournamentScreen>
       ),
       body: Column(
         children: [
+          if (tournament.isTest) const _TestBanner(),
           _RunningMatchBanner(tournament: tournament),
           _StuckTieBanner(tournament: tournament),
           Expanded(
@@ -260,9 +275,8 @@ class _MatchCard extends StatelessWidget {
 
     return Card(
       child: InkWell(
-        onTap: match.status != MatchStatus.finished && onTap != null
-            ? onTap
-            : null,
+        // Partida encerrada também abre, para conferir ou corrigir.
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -345,6 +359,36 @@ class _MatchCard extends StatelessWidget {
         'Agregado: $nameA ${totals[pair.$1] ?? 0} × '
         '${totals[pair.$2] ?? 0} $nameB',
         style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
+  }
+}
+
+// ── Torneio de teste ─────────────────────────────────────────────────────────
+
+class _TestBanner extends StatelessWidget {
+  const _TestBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.science_outlined,
+                size: 18, color: cs.onTertiaryContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Torneio de teste: não vai para o site nem conta título/gols.',
+                style: TextStyle(color: cs.onTertiaryContainer),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../../data/repositories/settings_repository.dart';
 import '../../data/services/backup_service.dart';
 import '../players/players_provider.dart';
 import '../../data/repositories/tournament_repository.dart';
+import 'reopen_service.dart';
 import 'standings_service.dart';
 import 'tie_service.dart';
 
@@ -53,7 +54,12 @@ class TournamentNotifier extends Notifier<Tournament?> {
               TieService.tiesOfPhase(newTournament, MatchPhase.finalMatch)
                   .firstOrNull;
           // Com ida e volta, o torneio só acaba depois do jogo de volta.
-          if (finalTie != null && TieService.isComplete(finalTie)) {
+          // O guard em tournament.status evita premiar título de novo se a
+          // partida final for reeditada depois de o torneio já ter
+          // terminado (ex.: corrigir um placar digitado errado).
+          if (tournament.status != TournamentStatus.finished &&
+              finalTie != null &&
+              TieService.isComplete(finalTie)) {
             newTournament = await _finalizeTournament(newTournament, finalTie);
             justFinalized = true;
           }
@@ -72,6 +78,41 @@ class TournamentNotifier extends Notifier<Tournament?> {
         tournaments: Hive.box<Tournament>('tournaments'),
       ).catchError((_) {});
     }
+  }
+
+  /// Reabre uma partida encerrada para corrigir placar ou artilheiros.
+  /// Devolve o motivo se não for possível, ou null se reabriu.
+  Future<String?> reopenMatch(String matchId) async {
+    final tournament = state;
+    if (tournament == null) return 'Torneio não encontrado.';
+    final match =
+        tournament.matches.where((m) => m.id == matchId).firstOrNull;
+    if (match == null) return 'Partida não encontrada.';
+
+    final blocked = ReopenService.blockedReason(tournament, match);
+    if (blocked != null) return blocked;
+
+    // Final de torneio já encerrado: tira o título e os gols que
+    // _finalizeTournament deu. Voltam quando a final for encerrada de novo.
+    if (tournament.status == TournamentStatus.finished && !tournament.isTest) {
+      final champion = tournament.champion;
+      final goals = <String, int>{};
+      for (final m in tournament.matches) {
+        if (m.status != MatchStatus.finished) continue;
+        for (final g in m.scorers) {
+          goals[g.playerId] = (goals[g.playerId] ?? 0) + 1;
+        }
+      }
+      await ref.read(playersProvider.notifier).revokeTournamentStats(
+            titlePlayerIds: champion?.playerIds ?? const [],
+            goals: goals,
+          );
+    }
+
+    final reopened = ReopenService.reopen(tournament, match);
+    await ref.read(tournamentRepositoryProvider).save(reopened);
+    state = reopened;
+    return null;
   }
 
   // ── Avanço de fase ─────────────────────────────────────────────────────────
@@ -155,6 +196,12 @@ class TournamentNotifier extends Notifier<Tournament?> {
   Future<Tournament> _finalizeTournament(
       Tournament tournament, List<MatchModel> finalTie) async {
     final winnerId = TieService.winnerId(finalTie);
+    final done = tournament.copyWith(
+      status: TournamentStatus.finished,
+      championTeamId: winnerId,
+    );
+    // Torneio de teste não premia ninguém.
+    if (tournament.isTest) return done;
 
     if (winnerId != null) {
       final winnerTeam =
@@ -179,12 +226,23 @@ class TournamentNotifier extends Notifier<Tournament?> {
       await playerNotifier.incrementGoals(entry.key, entry.value);
     }
 
-    return tournament.copyWith(
-      status: TournamentStatus.finished,
-      championTeamId: winnerId,
-    );
+    return done;
     // Nota: setActiveTournament(null) e sync são feitos em closeTournament(),
     // chamado pelo usuário ao fechar a tela de campeão.
+  }
+
+  /// Marca ou desmarca o torneio ativo como teste. Só antes de terminar:
+  /// depois disso título e gols já foram (ou não) contados.
+  Future<void> setTest(bool value) async {
+    final tournament = state;
+    if (tournament == null ||
+        tournament.status == TournamentStatus.finished ||
+        tournament.isTest == value) {
+      return;
+    }
+    final updated = tournament.copyWith(isTest: value);
+    await ref.read(tournamentRepositoryProvider).save(updated);
+    state = updated;
   }
 
   /// Chamado ao fechar a tela de campeão. Limpa o torneio ativo e sincroniza.

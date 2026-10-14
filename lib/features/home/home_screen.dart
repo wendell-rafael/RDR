@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/repositories/tournament_repository.dart';
 import '../../data/models/tournament.dart';
+import '../tournament/tournament_provider.dart';
 import '../../app/theme.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -12,6 +13,13 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tournamentRepo = ref.watch(tournamentRepositoryProvider);
     final activeTournament = tournamentRepo.getActive();
+    // Final encerrada, mas o torneio ainda não foi fechado: dá para voltar à
+    // tela de campeão, corrigir a final ou fechar de vez.
+    final current = ref.watch(activeTournamentProvider);
+    final awaitingClose =
+        current != null && current.status == TournamentStatus.finished
+            ? current
+            : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -52,6 +60,16 @@ class HomeScreen extends ConsumerWidget {
               color: AppTheme.homeAccents[2],
               onTap: () => context.pushNamed('tournament', pathParameters: {
                 'id': activeTournament.id,
+              }),
+            ),
+          if (awaitingClose != null)
+            _HomeCard(
+              icon: Icons.emoji_events_outlined,
+              title: 'Torneio Encerrado',
+              subtitle: 'Ver campeão, corrigir a final ou fechar',
+              color: AppTheme.homeAccents[2],
+              onTap: () => context.goNamed('champion', pathParameters: {
+                'id': awaitingClose.id,
               }),
             ),
           _HomeCard(

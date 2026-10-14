@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:uuid/uuid.dart';
+import '../../data/models/match_model.dart';
 import '../../data/models/player.dart';
 import '../../data/models/tournament.dart';
 import '../../data/repositories/player_repository.dart';
@@ -76,6 +77,26 @@ class PlayersNotifier extends Notifier<List<Player>> {
     state = _sorted(repo.getAll());
   }
 
+  /// Desfaz [awardTitle] e [incrementGoals] de um torneio que deixou de
+  /// estar encerrado (final reaberta para corrigir o resultado).
+  Future<void> revokeTournamentStats({
+    required List<String> titlePlayerIds,
+    required Map<String, int> goals,
+  }) async {
+    final repo = ref.read(playerRepositoryProvider);
+    final ids = {...titlePlayerIds, ...goals.keys};
+    for (final id in ids) {
+      final player = repo.getById(id);
+      if (player == null) continue;
+      final titles = titlePlayerIds.where((p) => p == id).length;
+      await repo.save(player.copyWith(
+        titles: (player.titles - titles).clamp(0, player.titles),
+        goals: (player.goals - (goals[id] ?? 0)).clamp(0, player.goals),
+      ));
+    }
+    state = _sorted(repo.getAll());
+  }
+
   /// Grava uma importação de lista de uma vez só: cria, renomeia e remove
   /// num lote, com um único envio para a nuvem no fim.
   Future<void> applyImport({
@@ -121,4 +142,46 @@ class PlayersNotifier extends Notifier<List<Player>> {
   }
 
   Player? getById(String id) => ref.read(playerRepositoryProvider).getById(id);
+
+  /// Recalcula título e gols de todo mundo do zero, a partir dos torneios
+  /// já salvos — corrige contagens infladas por qualquer bug de finalização
+  /// duplicada. Não mexe em nome/estrelas. Não envia pra nuvem: quem chama
+  /// decide quando enviar.
+  Future<int> recomputeStats(List<Tournament> tournaments) async {
+    final repo = ref.read(playerRepositoryProvider);
+    final titles = <String, int>{};
+    final goals = <String, int>{};
+
+    for (final tournament in tournaments) {
+      if (tournament.status != TournamentStatus.finished) continue;
+      if (tournament.isTest) continue;
+      if (tournament.championTeamId != null) {
+        final champion = tournament.teams
+            .where((t) => t.id == tournament.championTeamId)
+            .firstOrNull;
+        if (champion != null) {
+          for (final pid in champion.playerIds) {
+            titles[pid] = (titles[pid] ?? 0) + 1;
+          }
+        }
+      }
+      for (final match in tournament.matches) {
+        if (match.status != MatchStatus.finished) continue;
+        for (final goal in match.scorers) {
+          goals[goal.playerId] = (goals[goal.playerId] ?? 0) + 1;
+        }
+      }
+    }
+
+    var touched = 0;
+    for (final player in repo.getAll()) {
+      final nextTitles = titles[player.id] ?? 0;
+      final nextGoals = goals[player.id] ?? 0;
+      if (nextTitles == player.titles && nextGoals == player.goals) continue;
+      await repo.save(player.copyWith(titles: nextTitles, goals: nextGoals));
+      touched++;
+    }
+    state = _sorted(repo.getAll());
+    return touched;
+  }
 }

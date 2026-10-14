@@ -90,6 +90,16 @@ class _DrawConfigScreen extends ConsumerWidget {
               'agregado. Empatou no agregado, vai para os pênaltis.',
             ),
           ),
+          SwitchListTile(
+            value: state.isTest,
+            onChanged: notifier.setTest,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Torneio de teste'),
+            subtitle: const Text(
+              'Não aparece no site e não conta título nem gols para '
+              'os jogadores.',
+            ),
+          ),
           const SizedBox(height: 8),
           if (state.unmatchedImportedNames.isNotEmpty)
             _UnmatchedNamesCard(

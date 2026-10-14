@@ -55,6 +55,11 @@ class Tournament extends HiveObject {
   @HiveField(7)
   bool twoLegged;
 
+  /// Torneio de teste: não vai para o site e não conta título nem gols para
+  /// os jogadores. Fica só no aparelho e no backup privado da nuvem.
+  @HiveField(8)
+  bool isTest;
+
   Tournament({
     required this.id,
     required this.createdAt,
@@ -64,6 +69,7 @@ class Tournament extends HiveObject {
     List<MatchModel>? matches,
     this.championTeamId,
     this.twoLegged = false,
+    this.isTest = false,
   }) : matches = matches ?? [];
 
   Tournament copyWith({
@@ -75,6 +81,7 @@ class Tournament extends HiveObject {
     List<MatchModel>? matches,
     Object? championTeamId = _unsetSentinel,
     bool? twoLegged,
+    bool? isTest,
   }) {
     return Tournament(
       id: id ?? this.id,
@@ -87,6 +94,7 @@ class Tournament extends HiveObject {
           ? this.championTeamId
           : championTeamId as String?,
       twoLegged: twoLegged ?? this.twoLegged,
+      isTest: isTest ?? this.isTest,
     );
   }
 

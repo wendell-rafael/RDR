@@ -8,6 +8,7 @@ import '../../data/models/team.dart';
 import '../../data/models/tournament.dart';
 import '../../data/repositories/player_repository.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../tournament/reopen_service.dart';
 import '../tournament/tie_service.dart';
 import '../tournament/tournament_provider.dart';
 import 'timer_provider.dart';
@@ -136,8 +137,11 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
 
     final current = _readMatch();
     if (current == null) return;
-    // Minuto corrido desde o início da partida, pro histórico do gol.
-    final minute = ref.read(timerProvider).elapsed.inMinutes;
+    // Minuto corrido desde o início da partida, pro histórico do gol. Sem
+    // minuto se o cronômetro for de outra partida (correção de resultado).
+    final minute = _ownsTimer()
+        ? ref.read(timerProvider).elapsed.inMinutes
+        : null;
     await _persist(current.copyWith(
       scorers: [
         ...current.scorers,
@@ -165,6 +169,28 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
       scorers: scorers,
     ));
   }
+
+  /// Troca o autor de um gol já registrado, sem mexer no placar.
+  Future<void> _changeScorer(String teamId, String playerId) async {
+    final scorer = await _selectScorer(teamId);
+    if (scorer == null || scorer.id == playerId) return;
+
+    final m = _readMatch();
+    if (m == null || m.status == MatchStatus.finished) return;
+    final scorers = List<GoalEvent>.from(m.scorers);
+    final index = scorers
+        .lastIndexWhere((g) => g.teamId == teamId && g.playerId == playerId);
+    if (index == -1) return;
+    scorers[index] = GoalEvent(
+      playerId: scorer.id,
+      teamId: teamId,
+      minute: scorers[index].minute,
+    );
+    await _persist(m.copyWith(scorers: scorers));
+  }
+
+  bool _ownsTimer() =>
+      ref.read(settingsProvider).timerMatchId == widget.matchId;
 
   /// Lista todos os jogadores do banco, com os do time no topo — às vezes
   /// alguém de fora completa o time e marca.
@@ -222,7 +248,9 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
       if (penaltyWinnerId == null) return; // usuário cancelou
     }
 
-    await ref.read(timerProvider.notifier).stop();
+    // Ao corrigir uma partida antiga, o cronômetro pode ser de outra
+    // partida que está rolando — não pode parar.
+    if (_ownsTimer()) await ref.read(timerProvider.notifier).stop();
 
     await _persist(m.copyWith(
       status: MatchStatus.finished,
@@ -238,6 +266,61 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
       context.goNamed('champion', pathParameters: {'id': widget.tournamentId});
     } else {
       context.pop();
+    }
+  }
+
+  // ── Correção de resultado ──────────────────────────────────────────────────
+
+  Future<void> _reopenMatch() async {
+    final tournament = _readTournament();
+    final m = _readMatch();
+    if (tournament == null || m == null) return;
+
+    final blocked = ReopenService.blockedReason(tournament, m);
+    if (blocked != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(blocked)));
+      return;
+    }
+
+    final notes = [
+      'A partida volta a ficar em andamento: ajuste o placar e os '
+          'artilheiros e encerre de novo.',
+      if (ReopenService.clearsNextPhase(tournament, m))
+        'Os confrontos da fase seguinte serão redefinidos ao encerrar.',
+      if (m.penaltyWinnerId != null ||
+          TieService.penaltyWinnerOf(tournament.legsOf(m)) != null)
+        'Os pênaltis serão perguntados de novo, se precisar.',
+      if (tournament.status == TournamentStatus.finished)
+        'O título e os gols do torneio serão desfeitos e contados de novo '
+            'quando a final for encerrada.',
+    ];
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Corrigir resultado?'),
+        content: Text(notes.join('\n\n')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Corrigir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final error = await ref
+        .read(activeTournamentProvider.notifier)
+        .reopenMatch(widget.matchId);
+    if (error != null && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
@@ -370,7 +453,19 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
                     ],
                   ),
                   const SizedBox(height: 24),
-                  _ScorersList(match: m, tournament: tournament),
+                  _ScorersList(
+                    match: m,
+                    tournament: tournament,
+                    onTap: isFinished ? null : _changeScorer,
+                  ),
+                  if (!isFinished && m.scorers.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Toque num artilheiro para trocar o autor do gol.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   if (!isFinished)
                     FilledButton.icon(
@@ -382,7 +477,7 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
                         backgroundColor: Theme.of(context).colorScheme.error,
                       ),
                     )
-                  else
+                  else ...[
                     const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -391,6 +486,16 @@ class _MatchScreenState extends ConsumerState<MatchScreen>
                         Text('Partida encerrada'),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _reopenMatch,
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Corrigir resultado'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                      ),
+                    ),
+                  ],
                   if (!isFinished) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -480,7 +585,14 @@ class _ScorersList extends ConsumerWidget {
   final MatchModel match;
   final Tournament tournament;
 
-  const _ScorersList({required this.match, required this.tournament});
+  /// Recebe (teamId, playerId) do artilheiro tocado. Null = só leitura.
+  final void Function(String teamId, String playerId)? onTap;
+
+  const _ScorersList({
+    required this.match,
+    required this.tournament,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -502,10 +614,20 @@ class _ScorersList extends ConsumerWidget {
             tournament.teams.where((t) => t.id == e.key.$1).firstOrNull;
         final name = repo.getById(e.key.$2)?.name ?? 'Removido';
         final color = team != null ? Color(team.colorValue) : Colors.grey;
-        return Chip(
-          avatar: CircleAvatar(backgroundColor: color, radius: 6),
-          label: Text(e.value > 1 ? '$name (${e.value})' : name),
+        final label = Text(e.value > 1 ? '$name (${e.value})' : name);
+        final avatar = CircleAvatar(backgroundColor: color, radius: 6);
+        if (onTap == null) {
+          return Chip(
+            avatar: avatar,
+            label: label,
+            visualDensity: VisualDensity.compact,
+          );
+        }
+        return ActionChip(
+          avatar: avatar,
+          label: label,
           visualDensity: VisualDensity.compact,
+          onPressed: () => onTap!(e.key.$1, e.key.$2),
         );
       }).toList(),
     );

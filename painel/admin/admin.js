@@ -45,10 +45,12 @@ const phaseNames = ['Fase de grupos', 'Mata-mata', 'Final', 'Semifinal'];
 // histórico de torneios (time campeão + artilheiros de partidas encerradas).
 // Editar isso manualmente já causou jogador com título de torneio que nunca
 // ganhou; melhor não dar a opção de errar.
+// Torneio de teste (isTest) não conta nada — igual no app.
 function computeStats(tournaments) {
   const titles = new Map();
   const goals = new Map();
   for (const tournament of tournaments) {
+    if (tournament.isTest) continue;
     if (tournament.championTeamId) {
       const champion = (tournament.teams ?? [])
         .find((team) => team.id === tournament.championTeamId);
@@ -166,6 +168,10 @@ function renderTournamentMeta() {
       <option value=""${tournament.championTeamId ? '' : ' selected'}>Nenhum</option>
       ${teams.map((team) => `<option value="${esc(team.id)}"${team.id === tournament.championTeamId ? ' selected' : ''}>${esc(team.name)}</option>`).join('')}
     </select></label>
+    <label>Site<select data-meta-field="isTest">
+      <option value="0"${tournament.isTest ? '' : ' selected'}>Aparece no site</option>
+      <option value="1"${tournament.isTest ? ' selected' : ''}>Teste (fora do site)</option>
+    </select></label>
     <button type="button" class="secondary delete-tournament" id="delete-tournament">Excluir torneio</button>
   `;
 }
@@ -173,7 +179,7 @@ function renderTournamentMeta() {
 function tournamentLabel(tournament) {
   const champion = (tournament.teams ?? []).find((team) =>
     team.id === tournament.championTeamId)?.name;
-  return `${formatDate(tournament.createdAt)}${champion ? ` · ${champion}` : ''}`;
+  return `${formatDate(tournament.createdAt)}${champion ? ` · ${champion}` : ''}${tournament.isTest ? ' · teste' : ''}`;
 }
 
 function renderTournamentSelect() {
@@ -345,7 +351,8 @@ async function saveAll() {
         updatedBy: currentUser.uid,
         revision: nextRevision,
         players: draft.players.map(({ stars, ...rest }) => rest),
-        tournaments: draft.tournaments.map((t) => ({
+        // Torneio de teste fica só no documento privado.
+        tournaments: draft.tournaments.filter((t) => !t.isTest).map((t) => ({
           ...t,
           teams: (t.teams ?? []).map(({ averageStars, ...rest }) => rest),
         })),
@@ -447,6 +454,10 @@ $('tournament-meta').addEventListener('change', (event) => {
     tournament.status = Number(event.target.value);
   } else if (field === 'championTeamId') {
     tournament.championTeamId = event.target.value || null;
+    renderPlayers();
+  } else if (field === 'isTest') {
+    tournament.isTest = event.target.value === '1';
+    renderTournamentSelect();
     renderPlayers();
   }
   setDirty();

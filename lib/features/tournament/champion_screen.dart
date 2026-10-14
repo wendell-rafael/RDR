@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/repositories/player_repository.dart';
+import '../../data/models/tournament.dart';
 import '../draw/draw_provider.dart';
 import '../tournament/tournament_provider.dart';
 import '../../app/theme.dart';
@@ -19,6 +20,19 @@ class ChampionScreen extends ConsumerWidget {
       // Torneio já foi fechado; volta à home
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) context.go('/');
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // A final foi reaberta para corrigir o resultado: volta para a tabela.
+    // Só quando esta tela está visível — enquanto a partida está aberta por
+    // cima, redirecionar derrubaria a correção no meio.
+    if (tournament.status != TournamentStatus.finished &&
+        (ModalRoute.of(context)?.isCurrent ?? true)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          context.goNamed('tournament', pathParameters: {'id': tournament.id});
+        }
       });
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -183,6 +197,14 @@ class ChampionScreen extends ConsumerWidget {
 
                 const Spacer(),
 
+                // Fechou a final sem querer ou errou o placar/artilheiro.
+                TextButton.icon(
+                  onPressed: () => _correctFinal(context, tournament),
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Corrigir resultado da final'),
+                ),
+                const SizedBox(height: 8),
+
                 // Botão fechar
                 Row(
                   children: [
@@ -214,5 +236,34 @@ class ChampionScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _correctFinal(BuildContext context, Tournament tournament) async {
+    final legs = tournament.finalMatches
+      ..sort((a, b) => a.leg.compareTo(b.leg));
+    if (legs.isEmpty) return;
+
+    var matchId = legs.first.id;
+    if (legs.length > 1) {
+      final picked = await showDialog<String>(
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: const Text('Qual jogo da final?'),
+          children: legs
+              .map((m) => SimpleDialogOption(
+                    onPressed: () => Navigator.of(ctx).pop(m.id),
+                    child: Text(m.leg == 1 ? 'Jogo de ida' : 'Jogo de volta'),
+                  ))
+              .toList(),
+        ),
+      );
+      if (picked == null) return;
+      matchId = picked;
+    }
+
+    if (context.mounted) {
+      context.pushNamed('match',
+          pathParameters: {'id': tournament.id, 'matchId': matchId});
+    }
   }
 }

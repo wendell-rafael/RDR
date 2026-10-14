@@ -61,8 +61,11 @@ class SyncService {
         'updatedBy': writer.uid,
         'revision': savedRevision,
         'players': players.values.map(_playerToPublicMap).toList(),
-        'tournaments':
-            tournaments.values.map(_tournamentToPublicMap).toList(),
+        // Torneio de teste fica só no backup privado, fora do site.
+        'tournaments': tournaments.values
+            .where((t) => !t.isTest)
+            .map(_tournamentToPublicMap)
+            .toList(),
       });
     }).timeout(_timeout);
     await metadata.put(_revisionKey, savedRevision);
@@ -237,6 +240,7 @@ class SyncService {
         'status': t.status.index,
         'championTeamId': t.championTeamId,
         'twoLegged': t.twoLegged,
+        'isTest': t.isTest,
         'teams': t.teams.map(_teamToMap).toList(),
         'matches': t.matches.map(_matchToMap).toList(),
       };
@@ -261,6 +265,7 @@ class SyncService {
         status: TournamentStatus.values[m['status'] as int],
         championTeamId: m['championTeamId'] as String?,
         twoLegged: m['twoLegged'] as bool? ?? false,
+        isTest: m['isTest'] as bool? ?? false,
         teams: ((m['teams'] as List?)?.cast<Map>() ?? [])
             .map((e) => _teamFromMap(Map<String, dynamic>.from(e)))
             .toList(),

@@ -21,6 +21,9 @@ class DrawState {
   /// Semifinais e final em ida e volta, com placar agregado.
   final bool twoLegged;
 
+  /// Torneio de teste: fora do site e sem contar título/gols.
+  final bool isTest;
+
   /// Nomes da lista importada que não bateram com ninguém do banco.
   /// Ficam só como aviso na tela — a seleção deles é manual.
   final List<String> unmatchedImportedNames;
@@ -31,6 +34,7 @@ class DrawState {
     this.teams,
     this.seed = 0,
     this.twoLegged = false,
+    this.isTest = false,
     this.unmatchedImportedNames = const [],
   });
 
@@ -40,6 +44,7 @@ class DrawState {
     List<Team>? teams,
     int? seed,
     bool? twoLegged,
+    bool? isTest,
     List<String>? unmatchedImportedNames,
   }) {
     return DrawState(
@@ -48,6 +53,7 @@ class DrawState {
       teams: teams ?? this.teams,
       seed: seed ?? this.seed,
       twoLegged: twoLegged ?? this.twoLegged,
+      isTest: isTest ?? this.isTest,
       unmatchedImportedNames:
           unmatchedImportedNames ?? this.unmatchedImportedNames,
     );
@@ -60,6 +66,7 @@ class DrawState {
       teams: null,
       seed: seed,
       twoLegged: twoLegged,
+      isTest: isTest,
       unmatchedImportedNames: unmatchedImportedNames,
     );
   }
@@ -79,6 +86,10 @@ class DrawNotifier extends Notifier<DrawState> {
 
   void setTwoLegged(bool value) {
     state = state.copyWith(twoLegged: value);
+  }
+
+  void setTest(bool value) {
+    state = state.copyWith(isTest: value);
   }
 
   /// Aplica a lista importada: só os jogadores reconhecidos ficam marcados.
@@ -195,6 +206,7 @@ class DrawNotifier extends Notifier<DrawState> {
       teams: teams,
       format: format,
       twoLegged: state.twoLegged,
+      isTest: state.isTest,
       matches: BracketGenerator.generate(
         teams,
         tournamentId,
@@ -204,6 +216,8 @@ class DrawNotifier extends Notifier<DrawState> {
 
     final tournamentRepo = ref.read(tournamentRepositoryProvider);
     await tournamentRepo.save(tournament);
+    // Teste vale só para este torneio; o próximo sai oficial por padrão.
+    state = state.copyWith(isTest: false);
 
     await ref
         .read(settingsProvider.notifier)

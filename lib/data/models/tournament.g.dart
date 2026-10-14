@@ -27,13 +27,14 @@ class TournamentAdapter extends TypeAdapter<Tournament> {
       matches: (fields[5] as List?)?.cast<MatchModel>(),
       championTeamId: fields[6] as String?,
       twoLegged: fields[7] == null ? false : fields[7] as bool,
+      isTest: fields[8] == null ? false : fields[8] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, Tournament obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -49,7 +50,9 @@ class TournamentAdapter extends TypeAdapter<Tournament> {
       ..writeByte(6)
       ..write(obj.championTeamId)
       ..writeByte(7)
-      ..write(obj.twoLegged);
+      ..write(obj.twoLegged)
+      ..writeByte(8)
+      ..write(obj.isTest);
   }
 
   @override
