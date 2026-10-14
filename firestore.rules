@@ -74,7 +74,7 @@ service cloud.firestore {
     }
 
     // ── Copa CAESI (app copa_caesi, outro repositório) ───────────────────
-    // Documento único com times, jogos e súmulas. Público: o site da Copa
+    // Um documento com times, jogos e súmulas (mais o de teste). Público: o site da Copa
     // lê daqui ao vivo. Grava quem está em rdr_writers, sempre com a revisão
     // seguinte — um aparelho desatualizado não sobrescreve o outro.
 
@@ -92,12 +92,15 @@ service cloud.firestore {
         && request.resource.data.derived is map;
     }
 
-    match /copa/caesi {
-      allow read: if true;
-      allow create: if isWriter()
+    // caesi_teste: torneio de treino do modo teste do app (site /teste).
+    match /copa/{doc} {
+      allow read: if doc in ['caesi', 'caesi_teste'];
+      allow create: if doc in ['caesi', 'caesi_teste']
+        && isWriter()
         && isValidCopaPayload()
         && request.resource.data.revision == 1;
-      allow update: if isWriter()
+      allow update: if doc in ['caesi', 'caesi_teste']
+        && isWriter()
         && isValidCopaPayload()
         && request.resource.data.revision == resource.data.revision + 1;
       allow delete: if false;
