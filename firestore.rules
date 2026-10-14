@@ -82,6 +82,142 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // ── Check-in do racha ────────────────────────────────────────────────
+
+    function isValidCheckinConfig() {
+      return request.resource.data.keys().hasOnly([
+          'matchWeekday', 'matchHour', 'matchMinute',
+          'openWeekday', 'openHour', 'openMinute',
+          'closeMinutesBeforeMatch', 'playerCapacity', 'keeperCapacity',
+          'playerWaitlist', 'keeperWaitlist', 'fixedPlayers', 'fixedUids',
+          'maxEntries', 'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.matchWeekday is int
+        && request.resource.data.matchWeekday >= 0
+        && request.resource.data.matchWeekday <= 6
+        && request.resource.data.openWeekday is int
+        && request.resource.data.openWeekday >= 0
+        && request.resource.data.openWeekday <= 6
+        && request.resource.data.matchHour is int
+        && request.resource.data.matchHour >= 0
+        && request.resource.data.matchHour <= 23
+        && request.resource.data.openHour is int
+        && request.resource.data.openHour >= 0
+        && request.resource.data.openHour <= 23
+        && request.resource.data.matchMinute is int
+        && request.resource.data.matchMinute >= 0
+        && request.resource.data.matchMinute <= 59
+        && request.resource.data.openMinute is int
+        && request.resource.data.openMinute >= 0
+        && request.resource.data.openMinute <= 59
+        && request.resource.data.closeMinutesBeforeMatch is int
+        && request.resource.data.closeMinutesBeforeMatch >= 0
+        && request.resource.data.closeMinutesBeforeMatch <= 10080
+        && request.resource.data.playerCapacity is int
+        && request.resource.data.playerCapacity >= 0
+        && request.resource.data.playerCapacity <= 200
+        && request.resource.data.keeperCapacity is int
+        && request.resource.data.keeperCapacity >= 0
+        && request.resource.data.keeperCapacity <= 20
+        && request.resource.data.playerWaitlist is int
+        && request.resource.data.playerWaitlist >= 0
+        && request.resource.data.playerWaitlist <= 200
+        && request.resource.data.keeperWaitlist is int
+        && request.resource.data.keeperWaitlist >= 0
+        && request.resource.data.keeperWaitlist <= 20
+        && request.resource.data.fixedPlayers is list
+        && request.resource.data.fixedPlayers.size() <= 40
+        && request.resource.data.fixedUids is list
+        && request.resource.data.fixedUids.size() <= 40
+        && request.resource.data.maxEntries is int
+        && request.resource.data.maxEntries >= 1
+        && request.resource.data.maxEntries <= 500
+        && request.resource.data.updatedBy == request.auth.uid;
+    }
+
+    function isValidCheckinEvent() {
+      return request.resource.data.keys().hasOnly([
+          'openAt', 'closeAt', 'matchAt', 'playerCapacity', 'keeperCapacity',
+          'playerWaitlist', 'keeperWaitlist', 'fixedPlayers',
+          'maxEntries', 'status', 'createdAt', 'createdBy',
+          'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.keys().hasAll([
+          'openAt', 'closeAt', 'matchAt', 'playerCapacity', 'keeperCapacity',
+          'playerWaitlist', 'keeperWaitlist', 'maxEntries', 'status'
+        ])
+        && request.resource.data.openAt is timestamp
+        && request.resource.data.closeAt is timestamp
+        && request.resource.data.matchAt is timestamp
+        && request.resource.data.openAt < request.resource.data.closeAt
+        && request.resource.data.playerCapacity is int
+        && request.resource.data.playerCapacity >= 0
+        && request.resource.data.playerCapacity <= 200
+        && request.resource.data.keeperCapacity is int
+        && request.resource.data.keeperCapacity >= 0
+        && request.resource.data.keeperCapacity <= 20
+        && request.resource.data.playerWaitlist is int
+        && request.resource.data.playerWaitlist >= 0
+        && request.resource.data.playerWaitlist <= 200
+        && request.resource.data.keeperWaitlist is int
+        && request.resource.data.keeperWaitlist >= 0
+        && request.resource.data.keeperWaitlist <= 20
+        && request.resource.data.maxEntries is int
+        && request.resource.data.maxEntries >= 1
+        && request.resource.data.maxEntries <= 500
+        && request.resource.data.status in ['auto', 'open', 'closed', 'canceled']
+        // `fixedPlayers` é opcional no esquema, então precisa do guarda: ler um
+        // campo ausente aborta a regra, e regra abortada nega tudo.
+        && (!('fixedPlayers' in request.resource.data)
+          || (request.resource.data.fixedPlayers is list
+            && request.resource.data.fixedPlayers.size() <= 40))
+        && request.resource.data.updatedBy == request.auth.uid;
+    }
+
+    // Quando o racha acontece e quantas vagas tem. Público porque a página do
+    // check-in precisa desenhar a contagem regressiva antes de alguém entrar.
+    match /checkin_config/settings {
+      allow read: if true;
+      allow create, update: if isWriter() && isValidCheckinConfig();
+      allow delete: if false;
+    }
+
+    // Um documento por racha, com id igual à data do jogo. Quem cria no dia a
+    // dia é a Cloud Function (Admin SDK, passa por cima destas regras); o que
+    // este bloco libera é o ajuste manual pelo painel.
+    match /checkin_events/{eventId} {
+      allow read: if true;
+      allow create, update: if isWriter() && isValidCheckinEvent();
+      allow delete: if false;
+
+      // A fila. Leitura é pública porque a lista é pública — é ela que mostra
+      // quem está dentro e quem está esperando.
+      //
+      // Escrita é negada PARA TODO MUNDO, inclusive para quem administra: só a
+      // Cloud Function grava aqui. É isso que torna a ordem confiável. Se o
+      // navegador pudesse criar o próprio documento, ele escolheria o horário
+      // gravado, e a fila viraria disputa de quem mente melhor sobre o relógio.
+      match /entries/{uid} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    // Auditoria, limite por conta e limite por rede: escritos só pelo Admin SDK
+    // e invisíveis pro cliente. Um log que a própria pessoa auditada pudesse
+    // ler ou apagar não serviria de prova de nada.
+    match /checkin_audit/{entry} {
+      allow read, write: if false;
+    }
+
+    match /checkin_rate/{uid} {
+      allow read, write: if false;
+    }
+
+    match /checkin_ip/{bucket} {
+      allow read, write: if false;
+    }
+
     // Nada mais neste projeto é acessível pelo cliente.
     match /{document=**} {
       allow read, write: if false;

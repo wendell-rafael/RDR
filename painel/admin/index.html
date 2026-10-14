@@ -33,7 +33,7 @@
 
     <nav class="tabs" aria-label="Áreas de edição">
       <button class="tab active" type="button" data-tab="players" aria-selected="true">Jogadores</button>
-      <button class="tab" type="button" data-tab="matches" aria-selected="false">Partidas</button>
+      <button class="tab" type="button" data-tab="matches" aria-selected="false">Partidas</button><button class="tab" type="button" data-tab="checkin" aria-selected="false">Check-in</button>
     </nav>
 
     <section id="players-panel" class="panel" aria-labelledby="players-title">
@@ -47,6 +47,22 @@
       <p class="help">Corrija placares, situação e autores dos gols. Em torneios encerrados, mudanças nos autores também ajustam o total geral do jogador.</p>
       <div id="tournament-meta" class="tournament-meta"></div>
       <div id="matches-editor"></div>
+    </section>
+
+    <section id="checkin-panel" class="panel hidden" aria-labelledby="checkin-title">
+      <div class="panel-head"><div><p class="eyebrow">Presença</p><h2 id="checkin-title">Check-in</h2></div><label class="select-label">Racha<select id="checkin-event-select"></select></label></div>
+      <p class="help">A ordem da fila é gravada pelo servidor e não pode ser editada aqui — nem por você. Dá pra mudar horário, vagas e situação, e remover quem não deveria estar na lista.</p>
+      <p id="checkin-status" class="help" role="status"></p>
+
+      <h3 class="subpanel">Este racha</h3>
+      <div id="checkin-event-editor" class="checkin-grid"></div>
+
+      <h3 class="subpanel">Lista <small id="checkin-entries-count"></small></h3>
+      <div id="checkin-entries" class="checkin-entries"></div>
+
+      <h3 class="subpanel">Padrão semanal</h3>
+      <p class="help">Vale para os rachas ainda não criados. O que já existe continua com o horário que recebeu.</p>
+      <div id="checkin-config" class="checkin-grid"></div>
     </section>
   </section>
 </main>

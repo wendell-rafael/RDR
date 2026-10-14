@@ -1,0 +1,20 @@
+{
+  "name": "rdr-functions",
+  "description": "Cloud Functions do check-in do Racha dos Ruins",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@google-cloud/billing": "^4.4.0",
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.3.0"
+  }
+}

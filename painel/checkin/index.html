@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#071410">
+<title>Check-in — Racha dos Ruins</title>
+<meta name="description" content="Confirme presença no racha da semana. A fila segue a ordem de chegada.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="./checkin.css">
+</head>
+<body>
+
+<header class="board">
+  <div class="shell">
+    <p class="eyebrow">Confirmação de presença</p>
+    <h1>Vou jogar</h1>
+    <a class="back" href="/">← Voltar ao placar</a>
+  </div>
+</header>
+
+<main class="shell">
+
+  <section class="card accent" id="event-card" aria-live="polite">
+    <p class="eyebrow">Racha da semana</p>
+    <h2 id="event-date">Carregando…</h2>
+    <div class="status-line">
+      <span class="pill soon" id="event-pill">—</span>
+      <span class="countdown" id="event-countdown"></span>
+    </div>
+    <p id="event-detail"></p>
+  </section>
+
+  <section class="card" id="signin-card" hidden>
+    <h2>Entre para confirmar</h2>
+    <p>Uma conta Google vale uma vaga. É assim que a fila fica honesta: sem login, qualquer um entraria várias vezes ou no lugar de outro.</p>
+    <button type="button" class="google" id="sign-in">Entrar com Google</button>
+    <p class="msg err hidden" id="signin-error" role="alert"></p>
+  </section>
+
+  <section class="card" id="action-card" hidden>
+    <h2>Sua presença</h2>
+    <p id="account-line"></p>
+
+    <div id="mine" class="mine hidden" role="status"></div>
+
+    <label class="field" for="name">Nome que vai aparecer na lista
+      <input type="text" id="name" maxlength="40" autocomplete="name" spellcheck="false" placeholder="Como te chamam no racha">
+    </label>
+
+    <p class="field" id="role-label">Vai jogar de quê</p>
+    <div class="roles" role="radiogroup" aria-labelledby="role-label">
+      <button type="button" class="role" id="role-player" data-role="player" role="radio" aria-checked="true">Linha</button>
+      <button type="button" class="role" id="role-keeper" data-role="keeper" role="radio" aria-checked="false">Goleiro</button>
+    </div>
+    <p class="role-hint" id="role-hint"></p>
+
+    <button type="button" class="primary" id="go" disabled>Vou</button>
+    <button type="button" class="secondary hidden" id="cancel">Não vou mais, liberar minha vaga</button>
+    <button type="button" class="secondary" id="sign-out">Sair da conta</button>
+
+    <p class="msg hidden" id="action-message" role="status"></p>
+  </section>
+
+  <section id="lists" hidden></section>
+
+  <p class="msg err hidden" id="fatal" role="alert"></p>
+
+  <footer>A ordem da fila é a hora de chegada registrada pelo servidor</footer>
+</main>
+
+<script type="module" src="./checkin.js"></script>
+</body>
+</html>
