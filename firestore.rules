@@ -73,6 +73,36 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── Copa CAESI (app copa_caesi, outro repositório) ───────────────────
+    // Documento único com times, jogos e súmulas. Público: o site da Copa
+    // lê daqui ao vivo. Grava quem está em rdr_writers, sempre com a revisão
+    // seguinte — um aparelho desatualizado não sobrescreve o outro.
+
+    function isValidCopaPayload() {
+      return request.resource.data.keys().hasOnly([
+          'updatedAt', 'updatedBy', 'revision', 'copa', 'derived'
+        ])
+        && request.resource.data.keys().hasAll([
+          'updatedAt', 'updatedBy', 'revision', 'copa', 'derived'
+        ])
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.revision is int
+        && request.resource.data.copa is map
+        && request.resource.data.derived is map;
+    }
+
+    match /copa/caesi {
+      allow read: if true;
+      allow create: if isWriter()
+        && isValidCopaPayload()
+        && request.resource.data.revision == 1;
+      allow update: if isWriter()
+        && isValidCopaPayload()
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
+
     // Cada usuário pode consultar apenas a própria autorização. A allowlist é
     // administrada pelo Console/Admin SDK e nunca pode ser alterada pelo app.
     match /rdr_writers/{email} {
