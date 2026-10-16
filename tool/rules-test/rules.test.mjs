@@ -19,6 +19,8 @@ import {
 const RULES = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
 // Payload exatamente como o app da Copa o serializa (times fictícios).
 const APP = JSON.parse(readFileSync(new URL('./fixtures/copa-app-payload.json', import.meta.url), 'utf8'));
+// Payload como o app do vôlei serializa (gerado pelo próprio app).
+const VOLEI = JSON.parse(readFileSync(new URL('./fixtures/volei-app-payload.json', import.meta.url), 'utf8'));
 
 let env;
 
@@ -34,6 +36,7 @@ beforeEach(async () => {
     await setDoc(doc(db, 'rdr_writers', 'racha@x.com'), {});
     await setDoc(doc(db, 'rdr_writers', 'mesa@x.com'), {});
     await setDoc(doc(db, 'copa_writers', 'mesa@x.com'), {});
+    await setDoc(doc(db, 'volei_writers', 'volei@x.com'), {});
   });
 });
 
@@ -186,6 +189,67 @@ describe('Copa — o que pode ser gravado', () => {
   });
 });
 
+const volei = () => google('volei@x.com', 'uid-volei');
+const voleiPayload = (uid, revision, patch = {}, copaPatch = {}, derivedPatch = {}) => ({
+  updatedAt: serverTimestamp(),
+  updatedBy: uid,
+  revision,
+  copa: { ...structuredClone(VOLEI.copa), ...copaPatch },
+  derived: { ...structuredClone(VOLEI.derived), ...derivedPatch },
+  ...patch,
+});
+
+describe('Vôlei', () => {
+  const write = (ctx, payload, id = 'caesi') => setDoc(doc(ctx.firestore(), 'volei', id), payload);
+
+  test('leitura pública só de caesi e caesi_teste', async () => {
+    await assertSucceeds(getDoc(doc(anon().firestore(), 'volei', 'caesi')));
+    await assertSucceeds(getDoc(doc(anon().firestore(), 'volei', 'caesi_teste')));
+    await assertFails(getDoc(doc(anon().firestore(), 'volei', 'outro')));
+    await assertFails(getDocs(collection(anon().firestore(), 'volei')));
+  });
+
+  test('escritor do vôlei cria com o payload real do app e segue a revisão', async () => {
+    await assertSucceeds(write(volei(), voleiPayload('uid-volei', 1)));
+    await assertFails(write(volei(), voleiPayload('uid-volei', 3)));
+    await assertSucceeds(write(volei(), voleiPayload('uid-volei', 2)));
+    await assertSucceeds(write(volei(), voleiPayload('uid-volei', 1), 'caesi_teste'));
+    await assertFails(deleteDoc(doc(volei().firestore(), 'volei', 'caesi')));
+    await assertFails(write(volei(), voleiPayload('uid-volei', 1), 'outro'));
+  });
+
+  test('ninguém de fora grava: anônimo, Google qualquer, mesa da Copa, racha', async () => {
+    for (const [ctx, uid] of [[anon(), 'x'], [stranger(), 'uid-x'], [mesa(), 'uid-mesa'], [racha(), 'uid-racha']]) {
+      await assertFails(write(ctx, voleiPayload(uid, 1)));
+    }
+  });
+
+  test('escritor do vôlei NÃO grava na Copa de futsal nem no racha', async () => {
+    await assertFails(setDoc(doc(volei().firestore(), 'copa', 'caesi'), copaPayload('uid-volei', 1)));
+    await assertFails(setDoc(doc(volei().firestore(), 'racha', 'public'),
+      { updatedAt: serverTimestamp(), updatedBy: 'uid-volei', revision: 1, players: [], tournaments: [] }));
+  });
+
+  test('formato errado é recusado', async () => {
+    const w = (p) => write(volei(), p);
+    await assertFails(w(voleiPayload('uid-outro', 1)));
+    await assertFails(w(voleiPayload('uid-volei', 1, { updatedAt: new Date('2020-01-01') })));
+    await assertFails(w(voleiPayload('uid-volei', 1, { admin: true })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, { lixo: 1 })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, {}, { cards: [] })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, { setPoints: 0 })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, { setPoints: 100 })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, { setPoints: '15' })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, { setsToWin: 4 })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, { name: '' })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, { teams: Array(13).fill({}) })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, { matches: Array(33).fill({}) })));
+    await assertFails(w(voleiPayload('uid-volei', 1, {}, {}, { scorers: Array(201).fill({}) })));
+    // payload da Copa de futsal não passa como vôlei
+    await assertFails(w(copaPayload('uid-volei', 1)));
+  });
+});
+
 describe('Listas de escritores', () => {
   test('cada um só consulta a própria autorização', async () => {
     await assertSucceeds(getDoc(doc(mesa().firestore(), 'copa_writers', 'mesa@x.com')));
@@ -194,7 +258,9 @@ describe('Listas de escritores', () => {
     await assertSucceeds(getDoc(doc(racha().firestore(), 'rdr_writers', 'racha@x.com')));
   });
   test('ninguém lista, cria ou altera as listas, nem quem já está nelas', async () => {
-    for (const col of ['copa_writers', 'rdr_writers']) {
+    await assertSucceeds(getDoc(doc(volei().firestore(), 'volei_writers', 'volei@x.com')));
+    await assertFails(getDoc(doc(volei().firestore(), 'volei_writers', 'mesa@x.com')));
+    for (const col of ['copa_writers', 'rdr_writers', 'volei_writers']) {
       await assertFails(getDocs(collection(mesa().firestore(), col)));
       await assertFails(setDoc(doc(mesa().firestore(), col, 'novo@x.com'), {}));
       await assertFails(setDoc(doc(stranger().firestore(), col, 'qualquer@gmail.com'), {}));

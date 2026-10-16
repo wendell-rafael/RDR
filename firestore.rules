@@ -164,6 +164,83 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // ── Copa CAESI de vôlei ──────────────────────────────────────────────────
+    // Mesmo modelo da Copa de futsal, com documento e lista de quem grava
+    // próprios. O app publica só resultado consolidado (partida encerrada);
+    // o site é público e só lê. Contrato do formato:
+    // copa_caesi_volei/test/rules_contract_test.dart.
+    function isVoleiWriter() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && exists(/databases/$(database)/documents/volei_writers/$(request.auth.token.email.lower()));
+    }
+
+    function isValidVoleiPayload() {
+      let d = request.resource.data;
+      let c = d.copa;
+      return d.keys().hasOnly([
+          'updatedAt', 'updatedBy', 'revision', 'copa', 'derived'
+        ])
+        && d.keys().hasAll([
+          'updatedAt', 'updatedBy', 'revision', 'copa', 'derived'
+        ])
+        && d.updatedAt == request.time
+        && d.updatedBy == request.auth.uid
+        && d.revision is int
+        && d.revision >= 1
+        && c is map
+        && c.keys().hasOnly([
+          'name', 'setsToWin', 'setPoints', 'tieBreakPoints',
+          'finalSetsToWin', 'finalSetPoints', 'finalTieBreakPoints',
+          'teams', 'matches'
+        ])
+        && c.keys().hasAll([
+          'name', 'setsToWin', 'setPoints', 'tieBreakPoints',
+          'finalSetsToWin', 'finalSetPoints', 'finalTieBreakPoints',
+          'teams', 'matches'
+        ])
+        && c.name is string
+        && c.name.size() >= 1
+        && c.name.size() <= 80
+        && c.setsToWin in [1, 2, 3]
+        && c.finalSetsToWin in [1, 2, 3]
+        && c.setPoints is int && c.setPoints >= 1 && c.setPoints <= 99
+        && c.tieBreakPoints is int && c.tieBreakPoints >= 1 && c.tieBreakPoints <= 99
+        && c.finalSetPoints is int && c.finalSetPoints >= 1 && c.finalSetPoints <= 99
+        && c.finalTieBreakPoints is int && c.finalTieBreakPoints >= 1 && c.finalTieBreakPoints <= 99
+        && c.teams is list
+        && c.teams.size() <= 12
+        && c.matches is list
+        && c.matches.size() <= 32
+        && d.derived is map
+        && d.derived.keys().hasOnly(['standings', 'complete', 'scorers'])
+        && d.derived.scorers is list
+        && d.derived.scorers.size() <= 200;
+    }
+
+    match /volei/{doc} {
+      allow read: if doc in ['caesi', 'caesi_teste'];
+      allow create: if doc in ['caesi', 'caesi_teste']
+        && isVoleiWriter()
+        && isValidVoleiPayload()
+        && request.resource.data.revision == 1;
+      allow update: if doc in ['caesi', 'caesi_teste']
+        && isVoleiWriter()
+        && isValidVoleiPayload()
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
+    }
+
+    // Cada usuário só consulta a própria autorização no vôlei.
+    match /volei_writers/{email} {
+      allow get: if request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == email;
+      allow list, create, update, delete: if false;
+    }
+
     // Cada usuário pode consultar apenas a própria autorização. A allowlist é
     // administrada pelo Console/Admin SDK e nunca pode ser alterada pelo app.
     match /rdr_writers/{email} {
