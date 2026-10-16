@@ -74,36 +74,94 @@ service cloud.firestore {
     }
 
     // ── Copa CAESI (app copa_caesi, outro repositório) ───────────────────
-    // Um documento com times, jogos e súmulas (mais o de teste). Público: o site da Copa
-    // lê daqui ao vivo. Grava quem está em rdr_writers, sempre com a revisão
-    // seguinte — um aparelho desatualizado não sobrescreve o outro.
+    // Dois documentos: copa/caesi (a Copa de verdade) e copa/caesi_teste (o
+    // torneio de treino do app, mostrado em /teste no site). Leitura pública:
+    // o site lê daqui ao vivo.
+    //
+    // QUEM GRAVA: uma lista própria, copa_writers, separada da do Racha. Ter
+    // acesso ao racha não dá poder sobre o placar da Copa, e ao revés. Dá
+    // para tirar alguém dela no Console sem mexer no racha.
+    //
+    // O QUE PODE SER GRAVADO: só a forma exata que o app produz. Chaves
+    // desconhecidas, listas gigantes e tipos trocados são recusados, então
+    // nem uma conta autorizada consegue enfiar lixo ou inflar o documento.
+    // A revisão tem que ser sempre a seguinte: um aparelho desatualizado não
+    // sobrescreve o outro. Apagar é proibido.
 
-    function isValidCopaPayload() {
-      return request.resource.data.keys().hasOnly([
-          'updatedAt', 'updatedBy', 'revision', 'copa', 'derived'
-        ])
-        && request.resource.data.keys().hasAll([
-          'updatedAt', 'updatedBy', 'revision', 'copa', 'derived'
-        ])
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.revision is int
-        && request.resource.data.copa is map
-        && request.resource.data.derived is map;
+    function isCopaWriter() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && exists(/databases/$(database)/documents/copa_writers/$(request.auth.token.email.lower()));
     }
 
-    // caesi_teste: torneio de treino do modo teste do app (site /teste).
+    function isValidCopaPayload() {
+      let d = request.resource.data;
+      let c = d.copa;
+      return d.keys().hasOnly([
+          'updatedAt', 'updatedBy', 'revision', 'copa', 'derived'
+        ])
+        && d.keys().hasAll([
+          'updatedAt', 'updatedBy', 'revision', 'copa', 'derived'
+        ])
+        && d.updatedAt == request.time
+        && d.updatedBy == request.auth.uid
+        && d.revision is int
+        && d.revision >= 1
+        && c is map
+        && c.keys().hasOnly([
+          'name', 'halfMinutes', 'halves', 'finalHalves', 'finalHalfMinutes',
+          'teams', 'matches', 'clock'
+        ])
+        && c.keys().hasAll([
+          'name', 'halfMinutes', 'halves', 'finalHalves', 'finalHalfMinutes',
+          'teams', 'matches'
+        ])
+        && c.name is string
+        && c.name.size() >= 1
+        && c.name.size() <= 80
+        && c.halfMinutes is int
+        && c.halfMinutes >= 1
+        && c.halfMinutes <= 90
+        && c.finalHalfMinutes is int
+        && c.finalHalfMinutes >= 1
+        && c.finalHalfMinutes <= 90
+        && c.halves in [1, 2]
+        && c.finalHalves in [1, 2]
+        && c.teams is list
+        && c.teams.size() <= 24
+        && c.matches is list
+        && c.matches.size() <= 64
+        && (!('clock' in c) || c.clock == null || c.clock is map)
+        && d.derived is map
+        && d.derived.keys().hasOnly(['standings', 'complete', 'scorers', 'cards'])
+        && d.derived.scorers is list
+        && d.derived.scorers.size() <= 300
+        && d.derived.cards is list
+        && d.derived.cards.size() <= 300;
+    }
+
     match /copa/{doc} {
       allow read: if doc in ['caesi', 'caesi_teste'];
       allow create: if doc in ['caesi', 'caesi_teste']
-        && isWriter()
+        && isCopaWriter()
         && isValidCopaPayload()
         && request.resource.data.revision == 1;
       allow update: if doc in ['caesi', 'caesi_teste']
-        && isWriter()
+        && isCopaWriter()
         && isValidCopaPayload()
         && request.resource.data.revision == resource.data.revision + 1;
       allow delete: if false;
+    }
+
+    // Cada usuário só consulta a própria autorização na Copa. A lista é
+    // administrada pelo Console/Admin SDK e o app nunca consegue alterá-la.
+    match /copa_writers/{email} {
+      allow get: if request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == email;
+      allow list, create, update, delete: if false;
     }
 
     // Cada usuário pode consultar apenas a própria autorização. A allowlist é

@@ -1,0 +1,1163 @@
+{
+ "copa": {
+  "name": "Copa CAESI",
+  "halfMinutes": 15,
+  "halves": 1,
+  "finalHalves": 2,
+  "finalHalfMinutes": 10,
+  "teams": [
+   {
+    "id": "t0",
+    "name": "Leões",
+    "color": 4283207167,
+    "group": "A",
+    "players": [
+     {
+      "id": "t0-0",
+      "name": "Jogador 1 Leões",
+      "number": null
+     },
+     {
+      "id": "t0-1",
+      "name": "Jogador 2 Leões",
+      "number": null
+     },
+     {
+      "id": "t0-2",
+      "name": "Jogador 3 Leões",
+      "number": null
+     },
+     {
+      "id": "t0-3",
+      "name": "Jogador 4 Leões",
+      "number": null
+     },
+     {
+      "id": "t0-4",
+      "name": "Jogador 5 Leões",
+      "number": null
+     },
+     {
+      "id": "t0-5",
+      "name": "Jogador 6 Leões",
+      "number": null
+     },
+     {
+      "id": "t0-6",
+      "name": "Jogador 7 Leões",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t1",
+    "name": "Tubarões",
+    "color": 4284259839,
+    "group": "A",
+    "players": [
+     {
+      "id": "t1-0",
+      "name": "Jogador 1 Tubarões",
+      "number": null
+     },
+     {
+      "id": "t1-1",
+      "name": "Jogador 2 Tubarões",
+      "number": null
+     },
+     {
+      "id": "t1-2",
+      "name": "Jogador 3 Tubarões",
+      "number": null
+     },
+     {
+      "id": "t1-3",
+      "name": "Jogador 4 Tubarões",
+      "number": null
+     },
+     {
+      "id": "t1-4",
+      "name": "Jogador 5 Tubarões",
+      "number": null
+     },
+     {
+      "id": "t1-5",
+      "name": "Jogador 6 Tubarões",
+      "number": null
+     },
+     {
+      "id": "t1-6",
+      "name": "Jogador 7 Tubarões",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t2",
+    "name": "Falcões",
+    "color": 4285312511,
+    "group": "A",
+    "players": [
+     {
+      "id": "t2-0",
+      "name": "Jogador 1 Falcões",
+      "number": null
+     },
+     {
+      "id": "t2-1",
+      "name": "Jogador 2 Falcões",
+      "number": null
+     },
+     {
+      "id": "t2-2",
+      "name": "Jogador 3 Falcões",
+      "number": null
+     },
+     {
+      "id": "t2-3",
+      "name": "Jogador 4 Falcões",
+      "number": null
+     },
+     {
+      "id": "t2-4",
+      "name": "Jogador 5 Falcões",
+      "number": null
+     },
+     {
+      "id": "t2-5",
+      "name": "Jogador 6 Falcões",
+      "number": null
+     },
+     {
+      "id": "t2-6",
+      "name": "Jogador 7 Falcões",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t3",
+    "name": "Lobos",
+    "color": 4286365183,
+    "group": "A",
+    "players": [
+     {
+      "id": "t3-0",
+      "name": "Jogador 1 Lobos",
+      "number": null
+     },
+     {
+      "id": "t3-1",
+      "name": "Jogador 2 Lobos",
+      "number": null
+     },
+     {
+      "id": "t3-2",
+      "name": "Jogador 3 Lobos",
+      "number": null
+     },
+     {
+      "id": "t3-3",
+      "name": "Jogador 4 Lobos",
+      "number": null
+     },
+     {
+      "id": "t3-4",
+      "name": "Jogador 5 Lobos",
+      "number": null
+     },
+     {
+      "id": "t3-5",
+      "name": "Jogador 6 Lobos",
+      "number": null
+     },
+     {
+      "id": "t3-6",
+      "name": "Jogador 7 Lobos",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t4",
+    "name": "Panteras",
+    "color": 4287417855,
+    "group": "A",
+    "players": [
+     {
+      "id": "t4-0",
+      "name": "Jogador 1 Panteras",
+      "number": null
+     },
+     {
+      "id": "t4-1",
+      "name": "Jogador 2 Panteras",
+      "number": null
+     },
+     {
+      "id": "t4-2",
+      "name": "Jogador 3 Panteras",
+      "number": null
+     },
+     {
+      "id": "t4-3",
+      "name": "Jogador 4 Panteras",
+      "number": null
+     },
+     {
+      "id": "t4-4",
+      "name": "Jogador 5 Panteras",
+      "number": null
+     },
+     {
+      "id": "t4-5",
+      "name": "Jogador 6 Panteras",
+      "number": null
+     },
+     {
+      "id": "t4-6",
+      "name": "Jogador 7 Panteras",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t5",
+    "name": "Corujas",
+    "color": 4288470527,
+    "group": "B",
+    "players": [
+     {
+      "id": "t5-0",
+      "name": "Jogador 1 Corujas",
+      "number": null
+     },
+     {
+      "id": "t5-1",
+      "name": "Jogador 2 Corujas",
+      "number": null
+     },
+     {
+      "id": "t5-2",
+      "name": "Jogador 3 Corujas",
+      "number": null
+     },
+     {
+      "id": "t5-3",
+      "name": "Jogador 4 Corujas",
+      "number": null
+     },
+     {
+      "id": "t5-4",
+      "name": "Jogador 5 Corujas",
+      "number": null
+     },
+     {
+      "id": "t5-5",
+      "name": "Jogador 6 Corujas",
+      "number": null
+     },
+     {
+      "id": "t5-6",
+      "name": "Jogador 7 Corujas",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t6",
+    "name": "Touros",
+    "color": 4289523199,
+    "group": "B",
+    "players": [
+     {
+      "id": "t6-0",
+      "name": "Jogador 1 Touros",
+      "number": null
+     },
+     {
+      "id": "t6-1",
+      "name": "Jogador 2 Touros",
+      "number": null
+     },
+     {
+      "id": "t6-2",
+      "name": "Jogador 3 Touros",
+      "number": null
+     },
+     {
+      "id": "t6-3",
+      "name": "Jogador 4 Touros",
+      "number": null
+     },
+     {
+      "id": "t6-4",
+      "name": "Jogador 5 Touros",
+      "number": null
+     },
+     {
+      "id": "t6-5",
+      "name": "Jogador 6 Touros",
+      "number": null
+     },
+     {
+      "id": "t6-6",
+      "name": "Jogador 7 Touros",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t7",
+    "name": "Raposas",
+    "color": 4290575871,
+    "group": "B",
+    "players": [
+     {
+      "id": "t7-0",
+      "name": "Jogador 1 Raposas",
+      "number": null
+     },
+     {
+      "id": "t7-1",
+      "name": "Jogador 2 Raposas",
+      "number": null
+     },
+     {
+      "id": "t7-2",
+      "name": "Jogador 3 Raposas",
+      "number": null
+     },
+     {
+      "id": "t7-3",
+      "name": "Jogador 4 Raposas",
+      "number": null
+     },
+     {
+      "id": "t7-4",
+      "name": "Jogador 5 Raposas",
+      "number": null
+     },
+     {
+      "id": "t7-5",
+      "name": "Jogador 6 Raposas",
+      "number": null
+     },
+     {
+      "id": "t7-6",
+      "name": "Jogador 7 Raposas",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t8",
+    "name": "Águias",
+    "color": 4291628543,
+    "group": "B",
+    "players": [
+     {
+      "id": "t8-0",
+      "name": "Jogador 1 Águias",
+      "number": null
+     },
+     {
+      "id": "t8-1",
+      "name": "Jogador 2 Águias",
+      "number": null
+     },
+     {
+      "id": "t8-2",
+      "name": "Jogador 3 Águias",
+      "number": null
+     },
+     {
+      "id": "t8-3",
+      "name": "Jogador 4 Águias",
+      "number": null
+     },
+     {
+      "id": "t8-4",
+      "name": "Jogador 5 Águias",
+      "number": null
+     },
+     {
+      "id": "t8-5",
+      "name": "Jogador 6 Águias",
+      "number": null
+     },
+     {
+      "id": "t8-6",
+      "name": "Jogador 7 Águias",
+      "number": null
+     }
+    ]
+   },
+   {
+    "id": "t9",
+    "name": "Ursos",
+    "color": 4292681215,
+    "group": "B",
+    "players": [
+     {
+      "id": "t9-0",
+      "name": "Jogador 1 Ursos",
+      "number": null
+     },
+     {
+      "id": "t9-1",
+      "name": "Jogador 2 Ursos",
+      "number": null
+     },
+     {
+      "id": "t9-2",
+      "name": "Jogador 3 Ursos",
+      "number": null
+     },
+     {
+      "id": "t9-3",
+      "name": "Jogador 4 Ursos",
+      "number": null
+     },
+     {
+      "id": "t9-4",
+      "name": "Jogador 5 Ursos",
+      "number": null
+     },
+     {
+      "id": "t9-5",
+      "name": "Jogador 6 Ursos",
+      "number": null
+     },
+     {
+      "id": "t9-6",
+      "name": "Jogador 7 Ursos",
+      "number": null
+     }
+    ]
+   }
+  ],
+  "matches": [
+   {
+    "id": "e0222e59-a88e-4c91-a737-2aa25918f049",
+    "phase": "group",
+    "group": "A",
+    "round": 1,
+    "order": 1,
+    "homeId": "t1",
+    "awayId": "t4",
+    "period": "ended",
+    "events": [
+     {
+      "id": "e0",
+      "type": "goal",
+      "teamId": "t1",
+      "playerId": "t1-1",
+      "half": 1,
+      "second": 120,
+      "secondYellow": false
+     }
+    ],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792515600000,
+    "homeGoals": 1,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "7c27325d-f933-4ae5-8146-25ae62563199",
+    "phase": "group",
+    "group": "A",
+    "round": 1,
+    "order": 2,
+    "homeId": "t2",
+    "awayId": "t3",
+    "period": "ended",
+    "events": [
+     {
+      "id": "e1",
+      "type": "goal",
+      "teamId": "t2",
+      "playerId": "t2-1",
+      "half": 1,
+      "second": 120,
+      "secondYellow": false
+     },
+     {
+      "id": "e2",
+      "type": "yellow",
+      "teamId": "t3",
+      "playerId": "t3-3",
+      "half": 1,
+      "second": 200,
+      "secondYellow": false
+     },
+     {
+      "id": "e3",
+      "type": "yellow",
+      "teamId": "t3",
+      "playerId": "t3-3",
+      "half": 1,
+      "second": 500,
+      "secondYellow": false
+     },
+     {
+      "id": "b318951b-f575-4155-a342-d029a0e21c7b",
+      "type": "red",
+      "teamId": "t3",
+      "playerId": "t3-3",
+      "half": 1,
+      "second": 500,
+      "secondYellow": true
+     }
+    ],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792516800000,
+    "homeGoals": 1,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "f34a6c1b-ac1d-44bf-8fff-61c5a614c576",
+    "phase": "group",
+    "group": "B",
+    "round": 1,
+    "order": 3,
+    "homeId": "t6",
+    "awayId": "t9",
+    "period": "ended",
+    "events": [
+     {
+      "id": "e4",
+      "type": "goal",
+      "teamId": "t6",
+      "playerId": "t6-1",
+      "half": 1,
+      "second": 120,
+      "secondYellow": false
+     }
+    ],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792518000000,
+    "homeGoals": 1,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "69d4b5b7-4153-41ca-b3cb-ee4fc2301006",
+    "phase": "group",
+    "group": "B",
+    "round": 1,
+    "order": 4,
+    "homeId": "t7",
+    "awayId": "t8",
+    "period": "first",
+    "events": [
+     {
+      "id": "e5",
+      "type": "goal",
+      "teamId": "t7",
+      "playerId": "t7-1",
+      "half": 1,
+      "second": 120,
+      "secondYellow": false
+     },
+     {
+      "id": "e6",
+      "type": "yellow",
+      "teamId": "t8",
+      "playerId": "t8-3",
+      "half": 1,
+      "second": 200,
+      "secondYellow": false
+     },
+     {
+      "id": "e7",
+      "type": "yellow",
+      "teamId": "t8",
+      "playerId": "t8-3",
+      "half": 1,
+      "second": 500,
+      "secondYellow": false
+     },
+     {
+      "id": "b3d9c7a3-1447-443b-9de3-9779944e82cc",
+      "type": "red",
+      "teamId": "t8",
+      "playerId": "t8-3",
+      "half": 1,
+      "second": 500,
+      "secondYellow": true
+     }
+    ],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792519200000,
+    "homeGoals": 1,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "d5ff3da5-d5dc-4f61-87f8-f3aaaa1b14bf",
+    "phase": "group",
+    "group": "A",
+    "round": 2,
+    "order": 5,
+    "homeId": "t0",
+    "awayId": "t4",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792520400000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "50eeb6d0-ad23-4469-bdac-9a7b7ab454f8",
+    "phase": "group",
+    "group": "A",
+    "round": 2,
+    "order": 6,
+    "homeId": "t1",
+    "awayId": "t2",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792521600000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "8c736cc7-8c3a-42bd-a5b4-5b68e1344c37",
+    "phase": "group",
+    "group": "B",
+    "round": 2,
+    "order": 7,
+    "homeId": "t5",
+    "awayId": "t9",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792522800000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "9fdef64a-249b-4665-9d8b-7ae86d30c078",
+    "phase": "group",
+    "group": "B",
+    "round": 2,
+    "order": 8,
+    "homeId": "t6",
+    "awayId": "t7",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792524000000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "0eb6d7c2-9fc9-4132-bf19-fa2b962a6f7c",
+    "phase": "group",
+    "group": "A",
+    "round": 3,
+    "order": 9,
+    "homeId": "t3",
+    "awayId": "t0",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792525200000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "47ce132f-6951-4770-8b35-26f792315387",
+    "phase": "group",
+    "group": "A",
+    "round": 3,
+    "order": 10,
+    "homeId": "t4",
+    "awayId": "t2",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792526400000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "83777cb6-e924-4afc-b9a8-ae8e07270d80",
+    "phase": "group",
+    "group": "B",
+    "round": 3,
+    "order": 11,
+    "homeId": "t8",
+    "awayId": "t5",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792527600000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "fbf68b26-d2c3-428b-9c55-1f8ad43cf4d8",
+    "phase": "group",
+    "group": "B",
+    "round": 3,
+    "order": 12,
+    "homeId": "t9",
+    "awayId": "t7",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792528800000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "9583bf7f-bd6a-468d-a020-33696f1486bd",
+    "phase": "group",
+    "group": "A",
+    "round": 4,
+    "order": 13,
+    "homeId": "t0",
+    "awayId": "t2",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792530000000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "c1438e75-9975-458d-b63d-35adf18c8258",
+    "phase": "group",
+    "group": "A",
+    "round": 4,
+    "order": 14,
+    "homeId": "t3",
+    "awayId": "t1",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792531200000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "bbc97a0e-5e3f-46b9-96de-39312ffd6e91",
+    "phase": "group",
+    "group": "B",
+    "round": 4,
+    "order": 15,
+    "homeId": "t5",
+    "awayId": "t7",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792532400000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "64f89bb7-875c-496f-8175-67640dc47e4d",
+    "phase": "group",
+    "group": "B",
+    "round": 4,
+    "order": 16,
+    "homeId": "t8",
+    "awayId": "t6",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792533600000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "2e680933-4f8c-42a8-90e8-5955f056ddb1",
+    "phase": "group",
+    "group": "A",
+    "round": 5,
+    "order": 17,
+    "homeId": "t0",
+    "awayId": "t1",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792534800000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "bbcfa0aa-83c4-40a6-9476-ba6bbb5c02d7",
+    "phase": "group",
+    "group": "A",
+    "round": 5,
+    "order": 18,
+    "homeId": "t4",
+    "awayId": "t3",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792536000000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "c52e1221-a6b6-43c0-9137-74bd4457b7f5",
+    "phase": "group",
+    "group": "B",
+    "round": 5,
+    "order": 19,
+    "homeId": "t5",
+    "awayId": "t6",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792537200000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "0693d479-41a4-4afb-a7e1-6d4b29494c07",
+    "phase": "group",
+    "group": "B",
+    "round": 5,
+    "order": 20,
+    "homeId": "t9",
+    "awayId": "t8",
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792538400000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "3ef5199d-d0f6-43ba-9d2b-4c1c48a6cab9",
+    "phase": "semifinal",
+    "group": null,
+    "round": 0,
+    "order": 21,
+    "homeId": null,
+    "awayId": null,
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792539600000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "e6ce29e2-9ddc-45fa-8736-f95d5398b351",
+    "phase": "semifinal",
+    "group": null,
+    "round": 0,
+    "order": 22,
+    "homeId": null,
+    "awayId": null,
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792540800000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "430e695f-684e-4e86-8ec1-04ff978636a7",
+    "phase": "thirdPlace",
+    "group": null,
+    "round": 0,
+    "order": 23,
+    "homeId": null,
+    "awayId": null,
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792542000000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 1,
+    "halfMinutes": 15
+   },
+   {
+    "id": "1221f9d6-d6e1-4824-b9a4-22d32adaee4a",
+    "phase": "finalMatch",
+    "group": null,
+    "round": 0,
+    "order": 24,
+    "homeId": null,
+    "awayId": null,
+    "period": "notStarted",
+    "events": [],
+    "penHome": null,
+    "penAway": null,
+    "scheduledAt": 1792543200000,
+    "homeGoals": 0,
+    "awayGoals": 0,
+    "halves": 2,
+    "halfMinutes": 10
+   }
+  ],
+  "clock": {
+   "matchId": "69d4b5b7-4153-41ca-b3cb-ee4fc2301006",
+   "runningSinceMs": 1791994651173,
+   "elapsedBeforeMs": 0,
+   "durationMs": 900000
+  }
+ },
+ "derived": {
+  "standings": {
+   "A": [
+    {
+     "teamId": "t2",
+     "points": 3,
+     "played": 1,
+     "wins": 1,
+     "draws": 0,
+     "losses": 0,
+     "goalsFor": 1,
+     "goalsAgainst": 0,
+     "goalDiff": 1,
+     "yellows": 0,
+     "reds": 0
+    },
+    {
+     "teamId": "t1",
+     "points": 3,
+     "played": 1,
+     "wins": 1,
+     "draws": 0,
+     "losses": 0,
+     "goalsFor": 1,
+     "goalsAgainst": 0,
+     "goalDiff": 1,
+     "yellows": 0,
+     "reds": 0
+    },
+    {
+     "teamId": "t0",
+     "points": 0,
+     "played": 0,
+     "wins": 0,
+     "draws": 0,
+     "losses": 0,
+     "goalsFor": 0,
+     "goalsAgainst": 0,
+     "goalDiff": 0,
+     "yellows": 0,
+     "reds": 0
+    },
+    {
+     "teamId": "t4",
+     "points": 0,
+     "played": 1,
+     "wins": 0,
+     "draws": 0,
+     "losses": 1,
+     "goalsFor": 0,
+     "goalsAgainst": 1,
+     "goalDiff": -1,
+     "yellows": 0,
+     "reds": 0
+    },
+    {
+     "teamId": "t3",
+     "points": 0,
+     "played": 1,
+     "wins": 0,
+     "draws": 0,
+     "losses": 1,
+     "goalsFor": 0,
+     "goalsAgainst": 1,
+     "goalDiff": -1,
+     "yellows": 2,
+     "reds": 1
+    }
+   ],
+   "B": [
+    {
+     "teamId": "t6",
+     "points": 3,
+     "played": 1,
+     "wins": 1,
+     "draws": 0,
+     "losses": 0,
+     "goalsFor": 1,
+     "goalsAgainst": 0,
+     "goalDiff": 1,
+     "yellows": 0,
+     "reds": 0
+    },
+    {
+     "teamId": "t5",
+     "points": 0,
+     "played": 0,
+     "wins": 0,
+     "draws": 0,
+     "losses": 0,
+     "goalsFor": 0,
+     "goalsAgainst": 0,
+     "goalDiff": 0,
+     "yellows": 0,
+     "reds": 0
+    },
+    {
+     "teamId": "t7",
+     "points": 0,
+     "played": 0,
+     "wins": 0,
+     "draws": 0,
+     "losses": 0,
+     "goalsFor": 0,
+     "goalsAgainst": 0,
+     "goalDiff": 0,
+     "yellows": 0,
+     "reds": 0
+    },
+    {
+     "teamId": "t8",
+     "points": 0,
+     "played": 0,
+     "wins": 0,
+     "draws": 0,
+     "losses": 0,
+     "goalsFor": 0,
+     "goalsAgainst": 0,
+     "goalDiff": 0,
+     "yellows": 0,
+     "reds": 0
+    },
+    {
+     "teamId": "t9",
+     "points": 0,
+     "played": 1,
+     "wins": 0,
+     "draws": 0,
+     "losses": 1,
+     "goalsFor": 0,
+     "goalsAgainst": 1,
+     "goalDiff": -1,
+     "yellows": 0,
+     "reds": 0
+    }
+   ]
+  },
+  "complete": {
+   "A": false,
+   "B": false
+  },
+  "scorers": [
+   {
+    "playerId": "t2-1",
+    "teamId": "t2",
+    "goals": 1,
+    "yellows": 0,
+    "reds": 0
+   },
+   {
+    "playerId": "t7-1",
+    "teamId": "t7",
+    "goals": 1,
+    "yellows": 0,
+    "reds": 0
+   },
+   {
+    "playerId": "t6-1",
+    "teamId": "t6",
+    "goals": 1,
+    "yellows": 0,
+    "reds": 0
+   },
+   {
+    "playerId": "t1-1",
+    "teamId": "t1",
+    "goals": 1,
+    "yellows": 0,
+    "reds": 0
+   }
+  ],
+  "cards": [
+   {
+    "playerId": "t3-3",
+    "teamId": "t3",
+    "goals": 0,
+    "yellows": 2,
+    "reds": 1
+   },
+   {
+    "playerId": "t8-3",
+    "teamId": "t8",
+    "goals": 0,
+    "yellows": 2,
+    "reds": 1
+   }
+  ]
+ }
+}

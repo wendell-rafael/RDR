@@ -1,0 +1,11 @@
+{
+  "name": "rdr-rules-test",
+  "private": true,
+  "type": "module",
+  "description": "Testes das regras do Firestore no emulador (tool/test_rules.sh)",
+  "scripts": { "test": "node --test" },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.10.0"
+  }
+}
