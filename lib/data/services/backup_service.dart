@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive_ce/hive.dart';
 import 'cloud_auth_service.dart';
 import 'cloud_revision.dart';
+import 'local_backup_service.dart';
 import '../models/goal_event.dart';
 import '../models/match_model.dart';
 import '../models/player.dart';
@@ -94,28 +95,48 @@ class SyncService {
     final data = snap.data()!;
     final cloudRevision = (data['revision'] as num?)?.toInt() ?? 0;
 
-    // Valida e desserializa tudo antes de apagar os dados locais. Assim um
-    // documento incompatível ou malformado não deixa o aparelho sem backup.
-    final downloadedPlayers = ((data['players'] as List?)?.cast<Map>() ?? [])
-        .map((p) => _playerFromMap(Map<String, dynamic>.from(p)))
-        .toList();
-    final downloadedTournaments =
-        ((data['tournaments'] as List?)?.cast<Map>() ?? [])
-            .map((t) => _tournamentFromMap(Map<String, dynamic>.from(t)))
-            .toList();
-
-    await players.clear();
-    for (final player in downloadedPlayers) {
-      await players.put(player.id, player);
-    }
-
-    await tournaments.clear();
-    for (final tournament in downloadedTournaments) {
-      await tournaments.put(tournament.id, tournament);
-    }
+    // Cópia local antes de substituir o aparelho pelo que veio da nuvem.
+    await LocalBackupService.create('Antes de baixar da nuvem');
+    await replaceLocal(data, players: players, tournaments: tournaments);
     await Hive.box<int>('sync_meta').put(_revisionKey, cloudRevision);
 
     return true;
+  }
+
+  /// Estado completo (com o nível dos jogadores), no mesmo formato do
+  /// documento privado da nuvem. Usado pelas cópias locais.
+  static Map<String, dynamic> snapshot({
+    required Box<Player> players,
+    required Box<Tournament> tournaments,
+  }) =>
+      {
+        'players': players.values.map(_playerToMap).toList(),
+        'tournaments': tournaments.values.map(_tournamentToMap).toList(),
+      };
+
+  /// Substitui jogadores e torneios do aparelho por [data] (formato de
+  /// [snapshot]). Valida e desserializa tudo antes de apagar os dados locais:
+  /// um documento incompatível ou malformado não deixa o aparelho vazio.
+  static Future<void> replaceLocal(
+    Map data, {
+    required Box<Player> players,
+    required Box<Tournament> tournaments,
+  }) async {
+    final newPlayers = ((data['players'] as List?)?.cast<Map>() ?? [])
+        .map((p) => _playerFromMap(Map<String, dynamic>.from(p)))
+        .toList();
+    final newTournaments = ((data['tournaments'] as List?)?.cast<Map>() ?? [])
+        .map((t) => _tournamentFromMap(Map<String, dynamic>.from(t)))
+        .toList();
+
+    await players.clear();
+    for (final player in newPlayers) {
+      await players.put(player.id, player);
+    }
+    await tournaments.clear();
+    for (final tournament in newTournaments) {
+      await tournaments.put(tournament.id, tournament);
+    }
   }
 
   /// Retorna o timestamp da última sincronização, ou null se nunca sincronizou.

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/models/app_settings.dart';
 import '../../data/models/player.dart';
 import '../../data/models/tournament.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/services/backup_service.dart';
+import '../../data/services/local_backup_service.dart';
 import '../../data/services/cloud_auth_service.dart';
 import '../../data/services/cloud_revision.dart';
 import '../../widgets/dialog_action.dart';
@@ -140,6 +143,10 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 8),
+          const _LocalBackupsSection(),
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 8),
@@ -291,6 +298,7 @@ class SettingsScreen extends ConsumerWidget {
 
     // Solta o torneio ativo antes de apagar, senão a home aponta para um id
     // que não existe mais.
+    await LocalBackupService.create('Antes de zerar tudo');
     await ref.read(settingsProvider.notifier).setActiveTournament(null);
     final removed = await ref.read(tournamentRepositoryProvider).clear();
     final reset = await ref.read(playersProvider.notifier).resetStats();
@@ -559,6 +567,136 @@ class _CloudAccountCardState extends State<_CloudAccountCard> {
           },
         );
       },
+    );
+  }
+}
+
+/// Cópias de segurança locais: lista, restaura, compartilha e apaga.
+class _LocalBackupsSection extends ConsumerStatefulWidget {
+  const _LocalBackupsSection();
+
+  @override
+  ConsumerState<_LocalBackupsSection> createState() =>
+      _LocalBackupsSectionState();
+}
+
+class _LocalBackupsSectionState extends ConsumerState<_LocalBackupsSection> {
+  static const _collapsed = 6;
+  static final _when = DateFormat('dd/MM HH:mm');
+  bool _showAll = false;
+
+  Future<void> _restore(LocalBackup b) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restaurar esta cópia?'),
+        content: Text('Jogadores e torneios voltam ao estado de "${b.label}" '
+            '(${_when.format(b.at)}, ${b.tournamentCount} torneios, '
+            '${b.finishedMatches} partidas encerradas).\n\n'
+            'O estado de agora é guardado antes, então dá para desfazer. A '
+            'nuvem e o site só mudam depois de "Enviar agora".'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(ctx).colorScheme.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Restaurar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await LocalBackupService.restore(b);
+    // Torneio ativo que não existe na cópia: solta, senão a home aponta para
+    // um id que sumiu.
+    final active = ref.read(settingsProvider).activeTournamentId;
+    if (active != null &&
+        !Hive.box<Tournament>('tournaments').containsKey(active)) {
+      await ref.read(settingsProvider.notifier).setActiveTournament(null);
+    }
+    ref.invalidate(playersProvider);
+    ref.invalidate(tournamentRepositoryProvider);
+    if (!mounted) return;
+    setState(() {});
+    messenger.showSnackBar(const SnackBar(
+        content: Text('Cópia restaurada. Use "Enviar agora" para levar à '
+            'nuvem.')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = LocalBackupService.list();
+    final shown = _showAll ? entries : entries.take(_collapsed).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Cópias de segurança',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          'O app guarda uma cópia sozinho antes de cada partida começar e '
+          'antes de ações que apagam dados (as ${LocalBackupService.maxEntries} '
+          'mais recentes). Ficam neste aparelho.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        FilledButton.tonalIcon(
+          icon: const Icon(Icons.save_outlined),
+          label: const Text('Fazer cópia agora'),
+          onPressed: () async {
+            final messenger = ScaffoldMessenger.of(context);
+            await LocalBackupService.create('Cópia manual');
+            if (!mounted) return;
+            setState(() {});
+            messenger
+                .showSnackBar(const SnackBar(content: Text('Cópia guardada.')));
+          },
+        ),
+        const SizedBox(height: 8),
+        if (entries.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text('Nenhuma cópia ainda.',
+                style: Theme.of(context).textTheme.bodySmall),
+          ),
+        for (final b in shown)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(b.label, maxLines: 2, overflow: TextOverflow.ellipsis),
+            subtitle: Text('${_when.format(b.at)} · ${b.tournamentCount} '
+                'torneios · ${b.finishedMatches} partidas'),
+            trailing: PopupMenuButton<String>(
+              onSelected: (action) async {
+                switch (action) {
+                  case 'restore':
+                    await _restore(b);
+                  case 'share':
+                    await SharePlus.instance.share(ShareParams(
+                        text: b.toShareText(),
+                        subject: 'Cópia do Racha dos Ruins'));
+                  case 'delete':
+                    await LocalBackupService.remove(b.id);
+                    if (mounted) setState(() {});
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'restore', child: Text('Restaurar')),
+                PopupMenuItem(value: 'share', child: Text('Compartilhar')),
+                PopupMenuItem(value: 'delete', child: Text('Apagar cópia')),
+              ],
+            ),
+          ),
+        if (entries.length > _collapsed)
+          TextButton(
+            onPressed: () => setState(() => _showAll = !_showAll),
+            child: Text(
+                _showAll ? 'Mostrar menos' : 'Ver todas (${entries.length})'),
+          ),
+      ],
     );
   }
 }

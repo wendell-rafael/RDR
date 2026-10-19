@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'data/services/cloud_auth_service.dart';
+import 'data/services/local_backup_service.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'data/models/player.dart';
@@ -36,6 +37,7 @@ Future<void> main() async {
   await Hive.openBox<Tournament>('tournaments');
   await Hive.openBox<AppSettings>('settings');
   await Hive.openBox<int>('sync_meta');
+  await Hive.openBox<String>(LocalBackupService.boxName);
   await _seedPlayers();
   if (!kIsWeb) {
     FlutterForegroundTask.initCommunicationPort();

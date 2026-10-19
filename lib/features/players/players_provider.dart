@@ -6,6 +6,7 @@ import '../../data/models/player.dart';
 import '../../data/models/tournament.dart';
 import '../../data/repositories/player_repository.dart';
 import '../../data/services/backup_service.dart';
+import '../../data/services/local_backup_service.dart';
 
 const _uuid = Uuid();
 
@@ -54,6 +55,8 @@ class PlayersNotifier extends Notifier<List<Player>> {
   }
 
   Future<void> deletePlayer(String id) async {
+    final name = ref.read(playerRepositoryProvider).getById(id)?.name ?? '';
+    await LocalBackupService.create('Antes de apagar $name'.trim());
     await ref.read(playerRepositoryProvider).delete(id);
     state = _sorted(ref.read(playerRepositoryProvider).getAll());
     _pushToCloud();
@@ -106,6 +109,9 @@ class PlayersNotifier extends Notifier<List<Player>> {
     List<String> idsToDelete = const [],
   }) async {
     final repo = ref.read(playerRepositoryProvider);
+    if (idsToDelete.isNotEmpty || toRename.isNotEmpty) {
+      await LocalBackupService.create('Antes de importar a lista');
+    }
 
     for (final name in namesToCreate) {
       await repo.save(Player(

@@ -13,9 +13,16 @@ import '../../features/tournament/tie_service.dart';
 /// Monta as mensagens de texto para colar/compartilhar no grupo do WhatsApp.
 ///
 /// O WhatsApp formata com `*negrito*` e `_itálico_`; o resto é texto puro,
-/// então a mensagem continua legível em qualquer lugar.
+/// então a mensagem continua legível em qualquer lugar. Tom sóbrio, sem
+/// emojis: a cor do colete vai por extenso, e o link do site fecha a
+/// mensagem.
 class WhatsAppExport {
   static final _dateFormat = DateFormat('dd/MM/yyyy');
+
+  /// Site público com estatísticas e histórico.
+  static const siteUrl = 'https://racha-dos-ruins.web.app';
+
+  static String get _footer => 'Estatísticas e histórico: $siteUrl';
 
   // ── Times sorteados ────────────────────────────────────────────────────────
 
@@ -26,17 +33,17 @@ class WhatsAppExport {
     bool twoLegged = false,
   }) {
     final buffer = StringBuffer()
-      ..writeln('⚽ *RACHA DOS RUINS*')
-      ..writeln('📅 ${_dateFormat.format(date ?? DateTime.now())}');
-    if (twoLegged) buffer.writeln('🔁 Mata-mata em ida e volta');
+      ..writeln('*Racha dos Ruins — Times*')
+      ..writeln(_dateFormat.format(date ?? DateTime.now()));
+    if (twoLegged) buffer.writeln('Mata-mata em ida e volta');
     buffer.writeln();
 
     final byId = {for (final p in allPlayers) p.id: p};
 
     for (final team in teams) {
       buffer.writeln(
-          '${_colorEmoji(team.colorValue)} *${team.name}* '
-          '(média ⭐ ${team.averageStars.toStringAsFixed(1)})');
+          '*${team.name}* (${_colorName(team.colorValue)}) — '
+          'média ${team.averageStars.toStringAsFixed(1)}');
       var i = 1;
       for (final id in team.playerIds) {
         final name = byId[id]?.name ?? 'Jogador removido';
@@ -46,7 +53,10 @@ class WhatsAppExport {
     }
 
     final total = teams.fold<int>(0, (a, t) => a + t.playerIds.length);
-    buffer.write('👥 $total jogadores em ${teams.length} times');
+    buffer
+      ..writeln('$total jogadores em ${teams.length} times')
+      ..writeln()
+      ..write(_footer);
     return buffer.toString();
   }
 
@@ -54,19 +64,18 @@ class WhatsAppExport {
 
   static String standings(Tournament tournament, List<Player> allPlayers) {
     final buffer = StringBuffer()
-      ..writeln('⚽ *RACHA DOS RUINS*')
-      ..writeln('📅 ${_dateFormat.format(tournament.createdAt)}');
-    if (tournament.twoLegged) buffer.writeln('🔁 Mata-mata em ida e volta');
+      ..writeln('*Racha dos Ruins — ${_dateFormat.format(tournament.createdAt)}*');
+    if (tournament.twoLegged) buffer.writeln('Mata-mata em ida e volta');
     buffer.writeln();
 
     final table = StandingsService.compute(tournament);
     if (tournament.groupMatches.isNotEmpty && table.isNotEmpty) {
-      buffer.writeln('*CLASSIFICAÇÃO*');
+      buffer.writeln('*Classificação*');
       var pos = 1;
       for (final s in table) {
         buffer.writeln(
-          '$posº ${_colorEmoji(s.team.colorValue)} ${s.team.name} — '
-          '*${s.points}* pts '
+          '$pos. ${s.team.name} — '
+          '*${s.points} ${s.points == 1 ? 'pt' : 'pts'}* '
           '(${s.played}J ${s.wins}V ${s.draws}E ${s.losses}D, '
           'SG ${s.goalDiff > 0 ? '+' : ''}${s.goalDiff})',
         );
@@ -76,10 +85,10 @@ class WhatsAppExport {
     }
 
     final sections = <MatchPhase, String>{
-      MatchPhase.group: 'JOGOS DA FASE DE GRUPOS',
-      MatchPhase.playoff: 'PLAY-IN',
-      MatchPhase.semifinal: 'SEMIFINAIS',
-      MatchPhase.finalMatch: 'FINAL',
+      MatchPhase.group: 'Fase de grupos',
+      MatchPhase.playoff: 'Play-in',
+      MatchPhase.semifinal: 'Semifinais',
+      MatchPhase.finalMatch: 'Final',
     };
 
     for (final entry in sections.entries) {
@@ -95,7 +104,7 @@ class WhatsAppExport {
 
     final scorers = _topScorers(tournament, allPlayers);
     if (scorers.isNotEmpty) {
-      buffer.writeln('*ARTILHARIA*');
+      buffer.writeln('*Artilharia*');
       for (final line in scorers) {
         buffer.writeln(line);
       }
@@ -104,10 +113,12 @@ class WhatsAppExport {
 
     final champion = tournament.champion;
     if (champion != null) {
-      buffer.write(
-          '🏆 *CAMPEÃO: ${champion.name}* ${_colorEmoji(champion.colorValue)}');
+      buffer
+        ..writeln('*Campeão: ${champion.name}*')
+        ..writeln();
     }
 
+    buffer.write(_footer);
     return buffer.toString().trimRight();
   }
 
@@ -176,28 +187,34 @@ class WhatsAppExport {
         return nameA.compareTo(nameB);
       });
 
+    var pos = 0;
     return ranked.take(10).map((e) {
       final name = byId[e.key]?.name ?? 'Jogador removido';
-      return '⚽ $name — ${e.value} ${e.value == 1 ? 'gol' : 'gols'}';
+      return '${++pos}. $name — ${e.value} ${e.value == 1 ? 'gol' : 'gols'}';
     }).toList();
   }
 
-  /// Aproxima a cor do time pelo emoji de bolinha mais próximo.
-  static String _colorEmoji(int colorValue) {
-    final color = Color(colorValue);
-    final hsv = HSVColor.fromColor(color);
+  /// Nome da cor mais próxima do colete do time, por extenso.
+  static String _colorName(int colorValue) {
+    final hsv = HSVColor.fromColor(Color(colorValue));
 
-    if (hsv.value < 0.18) return '⚫';
-    if (hsv.saturation < 0.15) return hsv.value > 0.75 ? '⚪' : '⚫';
+    if (hsv.value < 0.18) return 'preto';
+    if (hsv.saturation < 0.15) {
+      return hsv.value > 0.75
+          ? 'branco'
+          : hsv.value < 0.35
+              ? 'preto'
+              : 'cinza';
+    }
 
     final hue = hsv.hue;
-    if (hue < 15 || hue >= 345) return '🔴';
-    if (hue < 40) return hsv.value < 0.55 ? '🟤' : '🟠';
-    if (hue < 65) return '🟡';
-    if (hue < 170) return '🟢';
-    if (hue < 260) return '🔵';
-    if (hue < 290) return '🟣';
-    return '🔴';
+    if (hue < 15 || hue >= 345) return 'vermelho';
+    if (hue < 40) return hsv.value < 0.55 ? 'marrom' : 'laranja';
+    if (hue < 65) return 'amarelo';
+    if (hue < 170) return 'verde';
+    if (hue < 260) return 'azul';
+    if (hue < 290) return 'roxo';
+    return 'rosa';
   }
 }
 

@@ -5,6 +5,7 @@ import '../../data/models/player.dart';
 import '../../data/models/tournament.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/services/backup_service.dart';
+import '../../data/services/local_backup_service.dart';
 import '../players/players_provider.dart';
 import '../../data/repositories/tournament_repository.dart';
 import 'reopen_service.dart';
@@ -26,6 +27,17 @@ class TournamentNotifier extends Notifier<Tournament?> {
   Future<void> updateMatch(MatchModel updated) async {
     final tournament = state;
     if (tournament == null) return;
+
+    // Partida começando: foto do aparelho antes de qualquer mudança. É o
+    // ponto seguro para voltar se algo der errado no jogo.
+    final before =
+        tournament.matches.where((m) => m.id == updated.id).firstOrNull;
+    if (before?.status == MatchStatus.pending &&
+        updated.status != MatchStatus.pending) {
+      await LocalBackupService.create(
+          'Antes de ${_teamName(tournament, updated.homeTeamId)} × '
+          '${_teamName(tournament, updated.awayTeamId)}');
+    }
 
     final matches = tournament.matches
         .map((m) => m.id == updated.id ? updated : m)
@@ -92,6 +104,10 @@ class TournamentNotifier extends Notifier<Tournament?> {
     final blocked = ReopenService.blockedReason(tournament, match);
     if (blocked != null) return blocked;
 
+    await LocalBackupService.create(
+        'Antes de reabrir ${_teamName(tournament, match.homeTeamId)} × '
+        '${_teamName(tournament, match.awayTeamId)}');
+
     // Final de torneio já encerrado: tira o título e os gols que
     // _finalizeTournament deu. Voltam quando a final for encerrada de novo.
     if (tournament.status == TournamentStatus.finished && !tournament.isTest) {
@@ -114,6 +130,9 @@ class TournamentNotifier extends Notifier<Tournament?> {
     state = reopened;
     return null;
   }
+
+  static String _teamName(Tournament t, String id) =>
+      t.teams.where((team) => team.id == id).firstOrNull?.name ?? '?';
 
   // ── Avanço de fase ─────────────────────────────────────────────────────────
 
@@ -260,6 +279,7 @@ class TournamentNotifier extends Notifier<Tournament?> {
     final tournament = state;
     if (tournament == null) return;
 
+    await LocalBackupService.create('Antes de cancelar o torneio');
     await ref.read(tournamentRepositoryProvider).delete(tournament.id);
     await ref.read(settingsProvider.notifier).setActiveTournament(null);
     state = null;
