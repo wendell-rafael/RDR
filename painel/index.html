@@ -34,27 +34,51 @@ table{width:100%;border-collapse:collapse}.rank tr{border-bottom:1px solid rgba(
 @media(max-width:650px){.tourney summary{grid-template-columns:82px 1fr 20px}.tourney summary .meta{grid-column:2}.chevron{grid-column:3;grid-row:1/3}.match{grid-template-columns:1fr 58px 1fr;gap:6px}.match-info{grid-column:1/4;padding-top:8px}.team-home{grid-column:1}.score{grid-column:2}.team-away{grid-column:3}.match-status{grid-column:1/4;justify-self:center;margin-bottom:7px}.match-extra{grid-column:1/4}.squads{grid-template-columns:1fr}.profile{padding:20px}.profile-stats{grid-template-columns:1fr 1fr}.profile-stat:nth-child(3){padding-left:0;border-left:0;border-top:1px solid var(--line)}.profile-stat:nth-child(4){border-top:1px solid var(--line)}.profile-row{grid-template-columns:80px 1fr}.profile-numbers{grid-column:2;text-align:left}.rank-positions{flex-direction:column;gap:4px}.compare-selects{grid-template-columns:1fr}.compare-vs-label{display:none}.podium-slot strong{font-size:24px}}
 @media(max-width:460px){.totals{grid-template-columns:repeat(2,1fr)}.totals>div:nth-child(2n+1):nth-child(n+3){padding-left:0;border-left:0}.totals>div:nth-child(n+3){margin-top:10px;border-top:1px solid var(--line)}.who{width:40%}.barcell{width:30%}.section-note{display:none}.tourney-body{padding-inline:12px}.tourney-stats{grid-template-columns:1fr 1fr 1fr}.tourney-stat{padding-inline:8px}.record-card{flex-basis:44%}.podium-slot{padding:12px 6px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
+
+/* Navegação por seções, fixa no topo ao rolar */
+html{scroll-padding-top:56px}
+.tabs{position:sticky;top:0;z-index:5;background:rgba(7,20,16,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.tabs-inner{display:flex;gap:4px;max-width:900px;margin:0 auto;padding:0 12px;overflow-x:auto;scrollbar-width:none}
+.tabs-inner::-webkit-scrollbar{display:none}
+.tabs a{flex:none;padding:13px 10px;color:var(--muted);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;border-bottom:2px solid transparent}
+.tabs a:hover,.tabs a:focus-visible{color:var(--chalk);border-bottom-color:var(--lamp)}
+/* Nome do time clicável: abre elenco e jogos no torneio */
+.team-link{display:inline-flex;align-items:center;gap:6px;padding:0;border:0;background:none;color:inherit;font:inherit;font-weight:inherit;text-align:left;cursor:pointer}
+.team-link .dot{display:inline-block;flex:none}
+.team-link:hover,.team-link:focus-visible{color:var(--lamp);text-decoration:underline;text-underline-offset:3px}
+.team-roster{margin:6px 0 0;padding:0;list-style:none;columns:2;column-gap:24px}
+.team-roster li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid rgba(36,70,58,.45);break-inside:avoid}
+.team-goals{color:var(--lamp);font-size:13px;font-weight:600;white-space:nowrap}
+.profile-title .dot{display:inline-block;vertical-align:middle}
+/* "Ver mais" dos torneios antigos */
+.more>summary{padding:14px 0;color:var(--paint);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:13px;cursor:pointer;list-style:none}
+.more>summary::-webkit-details-marker{display:none}
+.more[open]>summary .more-closed,.more:not([open])>summary .more-open{display:none}
+@media (max-width:560px){.team-roster{columns:1}.tabs a{padding:12px 8px;font-size:12px}}
 </style>
 </head>
 <body>
 <header class="board"><div class="board-inner"><p class="eyebrow">Placar geral</p><h1>Racha dos Ruins</h1><div class="totals" id="totals"></div><p class="updated" id="updated" aria-live="polite">Carregando…</p></div></header>
+<nav class="tabs" aria-label="Seções"><div class="tabs-inner">
+  <a href="#recordes">Recordes</a><a href="#campeao">Campeão</a><a href="#artilharia">Artilharia</a><a href="#titulos">Títulos</a><a href="#comparar">Comparar</a><a href="#torneios">Torneios</a>
+</div></nav>
 <div class="wrap">
   <div id="loading" class="msg" role="status">Buscando dados…</div>
   <div id="error" class="msg err hidden" role="alert"></div>
   <main id="content" class="hidden">
     <div id="live-banner" class="live-banner hidden" role="status"></div>
-    <h2>Recordes</h2><div id="records" class="records"></div>
-    <h2>Campeão da semana</h2><div id="champion-card" class="champion-card"></div>
-    <h2>Artilharia</h2><div id="scorers"></div>
-    <h2>Títulos</h2><div id="titles"></div>
-    <h2>Comparar jogadores</h2>
+    <h2 id="recordes">Recordes</h2><div id="records" class="records"></div>
+    <h2 id="campeao">Campeão da semana</h2><div id="champion-card" class="champion-card"></div>
+    <h2 id="artilharia">Artilharia</h2><div id="scorers"></div>
+    <h2 id="titulos">Títulos</h2><div id="titles"></div>
+    <h2 id="comparar">Comparar jogadores</h2>
     <div class="compare-selects">
       <label>Jogador A<select id="compare-a"></select></label>
       <span class="compare-vs-label">×</span>
       <label>Jogador B<select id="compare-b"></select></label>
     </div>
     <div id="compare-result" class="compare-result"></div>
-    <h2>Torneios <span class="section-note">Toque em um torneio para ver jogo a jogo</span></h2><div id="tourneys" class="tourneys timeline"></div>
+    <h2 id="torneios">Torneios <span class="section-note">Toque em um torneio para ver jogo a jogo; no time, para ver o elenco</span></h2><div id="tourneys" class="tourneys timeline"></div>
   </main>
   <footer>Dados sincronizados pelo app Racha dos Ruins</footer>
 </div>

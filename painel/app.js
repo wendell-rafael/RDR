@@ -1,4 +1,5 @@
 import { firebaseConfig } from './firebase-config.js';
+import { normalize } from './data.js';
 
 function decodeValue(v){if(!v||'nullValue'in v)return null;if('stringValue'in v)return v.stringValue;if('integerValue'in v)return Number(v.integerValue);if('doubleValue'in v)return Number(v.doubleValue);if('booleanValue'in v)return v.booleanValue;if('timestampValue'in v)return new Date(v.timestampValue).getTime();if('arrayValue'in v)return(v.arrayValue.values??[]).map(decodeValue);if('mapValue'in v)return decodeFields(v.mapValue.fields??{});return null}
 function decodeFields(fields){const out={};for(const key in fields)out[key]=decodeValue(fields[key]);return out}
@@ -10,6 +11,8 @@ const esc=(s)=>String(s).replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&
 const colorOf=(team)=>team?.colorValue==null?'#7b9488':`#${(Number(team.colorValue)&0xffffff).toString(16).padStart(6,'0')}`;
 const phaseName=['Fase de grupos','Mata-mata','Final','Semifinal'];
 let currentData={players:[],tournaments:[]};
+// Nome do time que abre a janela com elenco e jogos dele naquele torneio.
+const teamLink=(tournament,team)=>`<button type="button" class="team-link" data-tournament-id="${esc(tournament.id)}" data-team-id="${esc(team.id)}" aria-haspopup="dialog"><span class="dot" style="background:${colorOf(team)}"></span>${esc(team.name)}</button>`;
 const playerLink=(id,name)=>`<button type="button" class="player-link" data-player-id="${esc(id)}" aria-haspopup="dialog">${esc(name)}</button>`;
 
 function showError(title,detail){$('loading').classList.add('hidden');$('updated').textContent='';const el=$('error');el.classList.remove('hidden');el.innerHTML=`<strong>${esc(title)}</strong>${detail?`<code>${esc(detail)}</code>`:''}<button type="button" class="retry">Tentar novamente</button>`;el.querySelector('.retry').addEventListener('click',()=>location.reload())}
@@ -125,8 +128,8 @@ $('live-banner').addEventListener('click',(event)=>{
 // ── Comparar jogadores ───────────────────────────────────────────────────
 function populateCompareSelects(players){
   const options=players.slice().sort((a,b)=>String(a.name??'').localeCompare(String(b.name??''),'pt-BR')).map((p)=>`<option value="${esc(p.id)}">${esc(p.name||'Sem nome')}</option>`).join('');
-  $('compare-a').innerHTML=`<option value="">Selecione…</option>${options}`;
-  $('compare-b').innerHTML=`<option value="">Selecione…</option>${options}`;
+  // Atualização com o racha rolando redesenha a página: mantém a escolha.
+  for(const id of ['compare-a','compare-b']){const el=$(id),keep=el.value;el.innerHTML=`<option value="">Selecione…</option>${options}`;if(keep)el.value=keep}
 }
 function headToHead(playerA,playerB,tournaments){
   let matchesTogether=0,matchesAgainst=0;
@@ -169,7 +172,7 @@ function standings(tournament){
   for(const match of tournament.matches??[]){if(match.phase!==0||match.status!==2||!rows.has(match.homeTeamId)||!rows.has(match.awayTeamId))continue;const home=rows.get(match.homeTeamId),away=rows.get(match.awayTeamId),hs=Number(match.homeScore??0),as=Number(match.awayScore??0);home.p++;away.p++;home.gf+=hs;home.ga+=as;away.gf+=as;away.ga+=hs;if(hs>as){home.w++;away.l++;home.pts+=3}else if(as>hs){away.w++;home.l++;away.pts+=3}else{home.d++;away.d++;home.pts++;away.pts++}}
   return [...rows.values()].filter((row)=>row.p>0).sort((a,b)=>b.pts-a.pts||(b.gf-b.ga)-(a.gf-a.ga)||b.gf-a.gf||a.team.name.localeCompare(b.team.name,'pt-BR'));
 }
-function renderStandings(tournament){const rows=standings(tournament);if(!rows.length)return'';return `<p class="subhead">Classificação da fase de grupos</p><div class="table-scroll"><table class="standing"><thead><tr><th>#</th><th>Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td class="team-cell"><span class="dot" style="display:inline-block;background:${colorOf(r.team)}"></span> ${esc(r.team.name)}</td><td class="pts">${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf-r.ga}</td></tr>`).join('')}</tbody></table></div>`}
+function renderStandings(tournament){const rows=standings(tournament);if(!rows.length)return'';return `<p class="subhead">Classificação da fase de grupos</p><div class="table-scroll"><table class="standing"><thead><tr><th>#</th><th>Time</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td class="team-cell">${teamLink(tournament,r.team)}</td><td class="pts">${r.pts}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.gf-r.ga}</td></tr>`).join('')}</tbody></table></div>`}
 
 function scorerText(events,teamId,players){
   const byPlayer=new Map();
@@ -193,10 +196,42 @@ function renderMatch(match,tournament,players){
   return `<div class="match"><span class="match-info">${phaseInfo}</span><span class="team-home">${esc(home?.name||'A definir')}</span><span class="score">${played?`${Number(match.homeScore??0)} × ${Number(match.awayScore??0)}`:'×'}</span><span class="team-away">${esc(away?.name||'A definir')}</span><span class="match-status ${match.status===1?'live':match.status===2?'done':''}">${status}</span>${goals||penalty?`<div class="match-extra">${goals}${goals&&penalty?' · ':''}${penalty}</div>`:''}</div>`;
 }
 function renderMatches(tournament,players){const phases=[[0,'Fase de grupos'],[1,'Mata-mata'],[3,'Semifinais'],[2,'Final']];return phases.map(([id,label])=>{const matches=(tournament.matches??[]).filter((m)=>m.phase===id).sort((a,b)=>Number(a.scheduledOrder??0)-Number(b.scheduledOrder??0)||Number(a.leg??1)-Number(b.leg??1));return matches.length?`<section class="phase"><h3 class="phase-title">${label}</h3>${matches.map((m)=>renderMatch(m,tournament,players)).join('')}</section>`:''}).join('')}
-function renderSquads(tournament,players){const teams=tournament.teams??[];if(!teams.length)return'';return `<p class="subhead">Times e jogadores</p><div class="squads">${teams.map((team)=>{const roster=(team.playerIds??[]).map((id)=>players.has(id)?playerLink(id,players.get(id).name||'Sem nome'):'').filter(Boolean);return `<div class="squad"><div class="squad-title"><span class="dot" style="background:${colorOf(team)}"></span>${esc(team.name)}</div><p>${roster.length?roster.join(', '):'Elenco não informado'}</p></div>`}).join('')}</div>`}
+function renderSquads(tournament,players){const teams=tournament.teams??[];if(!teams.length)return'';return `<p class="subhead">Times e jogadores</p><div class="squads">${teams.map((team)=>{const roster=(team.playerIds??[]).map((id)=>players.has(id)?playerLink(id,players.get(id).name||'Sem nome'):'').filter(Boolean);return `<div class="squad"><div class="squad-title">${teamLink(tournament,team)}</div><p>${roster.length?roster.join(', '):'Elenco não informado'}</p></div>`}).join('')}</div>`}
 function renderTournament(tournament,index,isLatest,players){const teams=tournament.teams??[],matches=tournament.matches??[],champ=teams.find((team)=>team.id===tournament.championTeamId);const finished=matches.filter((m)=>m.status===2);const goals=finished.reduce((sum,m)=>sum+Number(m.homeScore??0)+Number(m.awayScore??0),0);const champMarkup=champ?`<span class="champ"><span class="dot" style="background:${colorOf(champ)}"></span><span class="tag">CAMPEÃO</span><span class="champ-name">${esc(champ.name)}</span></span>`:'<span class="nochamp">sem campeão</span>';
   const live=Number(tournament.status)===0;
   return `<details class="tourney${live?' is-live':''}" id="tournament-${esc(tournament.id)}"><summary><span class="date">${fmtDate(tournament.createdAt)}</span>${champMarkup}<span class="meta">${plural(teams.length,'time','times')} · ${finished.length}/${matches.length} jogos${tournament.twoLegged?' · ida e volta':''}</span><span class="chevron" aria-hidden="true">⌄</span></summary><div class="tourney-body"><div class="tourney-stats"><div class="tourney-stat"><strong>${teams.length}</strong><span>Times</span></div><div class="tourney-stat"><strong>${finished.length}</strong><span>Jogos</span></div><div class="tourney-stat"><strong>${goals}</strong><span>Gols</span></div></div>${renderStandings(tournament)}<p class="subhead">Jogo a jogo</p>${renderMatches(tournament,players)||'<div class="msg">Nenhuma partida registrada.</div>'}${renderSquads(tournament,players)}</div></details>`}
+
+// Os mais recentes ficam à mostra; o resto, em "Ver mais".
+const TOURNEYS_VISIBLE=8;
+function renderTournamentList(tournaments,players){
+  const html=(list,offset)=>list.map((t,i)=>renderTournament(t,i+offset,i+offset===0,players)).join('');
+  if(tournaments.length<=TOURNEYS_VISIBLE)return html(tournaments,0);
+  const rest=tournaments.length-TOURNEYS_VISIBLE;
+  return html(tournaments.slice(0,TOURNEYS_VISIBLE),0)+`<details class="more" id="more-tourneys"><summary><span class="more-closed">Ver mais ${plural(rest,'torneio','torneios')}</span><span class="more-open">Ocultar torneios antigos</span></summary>${html(tournaments.slice(TOURNEYS_VISIBLE),TOURNEYS_VISIBLE)}</details>`;
+}
+
+// Torneios e listas abertos sobrevivem à atualização automática.
+const openIds=new Set();
+document.addEventListener('toggle',(event)=>{const el=event.target;if(!(el instanceof HTMLDetailsElement)||!el.id)return;if(el.open)openIds.add(el.id);else openIds.delete(el.id)},true);
+function restoreOpen(){for(const id of openIds){const el=document.getElementById(id);if(el)el.open=true}}
+
+// ── Janela do time ───────────────────────────────────────────────────────
+function openTeamProfile(tournamentId,teamId){
+  const tournament=(currentData.tournaments??[]).find((t)=>t.id===tournamentId);
+  const team=(tournament?.teams??[]).find((item)=>item.id===teamId);
+  if(!team)return;
+  const players=new Map((currentData.players??[]).map((p)=>[p.id,p]));
+  const row=standings(tournament).find((item)=>item.team.id===team.id);
+  const goals=new Map();
+  for(const m of tournament.matches??[])for(const g of m.scorers??[])if(g.teamId===team.id)goals.set(g.playerId,(goals.get(g.playerId)??0)+1);
+  const roster=(team.playerIds??[]).map((id)=>{const p=players.get(id);if(!p)return '';const n=goals.get(id)??0;return `<li>${playerLink(id,p.name||'Sem nome')}${n?`<span class="team-goals">${plural(n,'gol','gols')}</span>`:''}</li>`}).join('');
+  const matches=(tournament.matches??[]).filter((m)=>m.homeTeamId===team.id||m.awayTeamId===team.id).sort((a,b)=>Number(a.scheduledOrder??0)-Number(b.scheduledOrder??0)||Number(a.leg??1)-Number(b.leg??1));
+  const champion=tournament.championTeamId===team.id;
+  const stats=row?`<div class="profile-stats"><div class="profile-stat"><strong>${row.pts}</strong><span>Pontos</span></div><div class="profile-stat"><strong>${row.w}-${row.d}-${row.l}</strong><span>V-E-D</span></div><div class="profile-stat"><strong>${row.gf}</strong><span>Gols pró</span></div><div class="profile-stat"><strong>${row.gf-row.ga>0?'+':''}${row.gf-row.ga}</strong><span>Saldo</span></div></div>`:'';
+  $('player-profile').innerHTML=`<div class="profile-head"><div><p class="eyebrow">Torneio de ${fmtDate(tournament.createdAt)}${champion?' · campeão':''}</p><h2 class="profile-title"><span class="dot" style="background:${colorOf(team)}"></span> ${esc(team.name)}</h2></div><button type="button" class="dialog-close" aria-label="Fechar">×</button></div>${stats}<p class="subhead">Elenco</p>${roster?`<ul class="team-roster">${roster}</ul>`:'<div class="profile-empty">Elenco não informado.</div>'}<p class="subhead">Jogos</p>${matches.length?matches.map((m)=>renderMatch(m,tournament,players)).join(''):'<div class="profile-empty">Nenhum jogo.</div>'}`;
+  const dialog=$('player-dialog');dialog.querySelector('.dialog-close').addEventListener('click',()=>dialog.close());if(!dialog.open)dialog.showModal();
+}
+document.addEventListener('click',(event)=>{const trigger=event.target.closest?.('.team-link');if(trigger)openTeamProfile(trigger.dataset.tournamentId,trigger.dataset.teamId)});
 
 function positionOf(players,player,key){const index=ranking(players,key).findIndex((row)=>row.id===player.id);return index<0?'—':`${index+1}º`}
 function playerHistory(player,tournaments){return tournaments.map((tournament)=>{const teams=(tournament.teams??[]).filter((team)=>(team.playerIds??[]).includes(player.id));if(!teams.length)return null;const teamIds=new Set(teams.map((team)=>team.id));const matches=(tournament.matches??[]).filter((match)=>match.status===2&&(teamIds.has(match.homeTeamId)||teamIds.has(match.awayTeamId)));const goals=(tournament.matches??[]).reduce((sum,match)=>sum+(match.scorers??[]).filter((goal)=>goal.playerId===player.id).length,0);return{tournament,teams,matches,goals,champion:teams.some((team)=>team.id===tournament.championTeamId)}}).filter(Boolean).sort((a,b)=>Number(b.tournament.createdAt??0)-Number(a.tournament.createdAt??0))}
@@ -270,6 +305,45 @@ $('player-dialog').addEventListener('click',(event)=>{
 function render(data){const players=Array.isArray(data.players)?data.players:[],playerMap=new Map(players.map((p)=>[p.id,p]));const tournaments=(Array.isArray(data.tournaments)?data.tournaments:[]).slice().sort((a,b)=>Number(b.createdAt??0)-Number(a.createdAt??0));currentData={players,tournaments};const totalGoals=players.reduce((sum,p)=>sum+Number(p.goals??0),0),finishedMatches=tournaments.reduce((sum,t)=>sum+(t.matches??[]).filter((m)=>m.status===2).length,0);
     const matchGoals=allFinishedMatches(tournaments).reduce((sum,{m})=>sum+Number(m.homeScore??0)+Number(m.awayScore??0),0);
     const avgGoals=finishedMatches?(matchGoals/finishedMatches).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—';
-    $('totals').innerHTML=[[fmtNumber.format(tournaments.length),'Torneios'],[fmtNumber.format(players.length),'Jogadores'],[fmtNumber.format(totalGoals),'Gols'],[fmtNumber.format(finishedMatches),'Partidas'],[avgGoals,'Gols/partida']].map(([n,label])=>`<div><span class="n">${n}</span><span class="l">${label}</span></div>`).join('');renderLiveBanner(tournaments);renderRecords(players,tournaments);renderTeamOfWeek(tournaments,playerMap);renderRank($('scorers'),ranking(players,'goals',12),'var(--lamp)','gol','gols');renderRank($('titles'),ranking(players,'titles',12),'var(--paint)','título','títulos');populateCompareSelects(players);renderCompare();$('tourneys').innerHTML=tournaments.length?tournaments.map((t,i)=>renderTournament(t,i,i===0,playerMap)).join(''):'<div class="msg">Nenhum torneio registrado ainda.</div>';$('updated').textContent=data.updatedAt?`Atualizado em ${fmtDate(data.updatedAt)}`:'Sem data de atualização';$('loading').classList.add('hidden');$('content').classList.remove('hidden')}
-async function main(){if(!firebaseConfig.apiKey||firebaseConfig.apiKey==='COLE_AQUI'){showError('Configuração do Firebase não preenchida.','Registre um app Web no console e copie os valores para painel/firebase-config.js');return}const url=`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/racha/public?key=${firebaseConfig.apiKey}`;try{const res=await fetch(url);if(res.status===404){showError('Nenhum dado na nuvem ainda.','Use “Enviar agora” nas Configurações do app.');return}if(res.status===403){showError('Sem permissão para ler os dados.','Confirme a leitura pública do documento /racha/public.');return}if(!res.ok){showError('Falha ao carregar.',`HTTP ${res.status}`);return}const body=await res.json();render(decodeFields(body.fields??{}))}catch(error){showError('Falha ao carregar.',String(error))}}
+    $('totals').innerHTML=[[fmtNumber.format(tournaments.length),'Torneios'],[fmtNumber.format(players.length),'Jogadores'],[fmtNumber.format(totalGoals),'Gols'],[fmtNumber.format(finishedMatches),'Partidas'],[avgGoals,'Gols/partida']].map(([n,label])=>`<div><span class="n">${n}</span><span class="l">${label}</span></div>`).join('');renderLiveBanner(tournaments);renderRecords(players,tournaments);renderTeamOfWeek(tournaments,playerMap);renderRank($('scorers'),ranking(players,'goals',12),'var(--lamp)','gol','gols');renderRank($('titles'),ranking(players,'titles',12),'var(--paint)','título','títulos');populateCompareSelects(players);renderCompare();$('tourneys').innerHTML=tournaments.length?renderTournamentList(tournaments,playerMap):'<div class="msg">Nenhum torneio registrado ainda.</div>';restoreOpen();$('updated').textContent=data.updatedAt?`Atualizado em ${fmtDate(data.updatedAt)}`:'Sem data de atualização';$('loading').classList.add('hidden');$('content').classList.remove('hidden')}
+// ── Atualização ──────────────────────────────────────────────────────────
+// Cada leitura do Firestore conta na cota do projeto, então:
+//   1. pinta na hora o último resultado guardado neste aparelho (0 leitura);
+//   2. busca o documento uma vez (1 leitura);
+//   3. só com racha rolando (torneio ativo) busca de novo a cada minuto, e
+//      só com a aba visível — aba esquecida aberta não gasta nada.
+const DOC_URL=`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/racha/public?key=${firebaseConfig.apiKey}`;
+const SNAPSHOT_KEY='racha-snapshot';
+const LIVE_POLL_MS=60000;
+let pollTimer=null,shownRevision=null;
+function readSnapshot(){try{const raw=JSON.parse(localStorage.getItem(SNAPSHOT_KEY)??'null');return raw&&Array.isArray(raw.players)?normalize(raw):null}catch{return null}}
+function saveSnapshot(data){try{localStorage.setItem(SNAPSHOT_KEY,JSON.stringify(data))}catch{/* sem armazenamento */}}
+const isLive=()=>(currentData.tournaments??[]).some((t)=>Number(t.status)===0);
+function show(data){
+  // Mesma revisão já na tela: não redesenha (nada fecha nem pisca).
+  if(shownRevision!=null&&data.revision!=null&&data.revision===shownRevision)return;
+  shownRevision=data.revision;
+  render(data);
+}
+function schedule(){clearTimeout(pollTimer);if(document.hidden||!isLive())return;pollTimer=setTimeout(load,LIVE_POLL_MS)}
+async function load(){
+  try{
+    const res=await fetch(DOC_URL,{cache:'no-store'});
+    if(res.status===404){if(shownRevision==null)showError('Nenhum dado na nuvem ainda.','Use “Enviar agora” nas Configurações do app.');return}
+    if(res.status===403){if(shownRevision==null)showError('Sem permissão para ler os dados.','Confirme a leitura pública do documento /racha/public.');return}
+    if(!res.ok){if(shownRevision==null)showError('Falha ao carregar.',`HTTP ${res.status}`);return}
+    const body=await res.json();
+    const data=normalize(decodeFields(body.fields??{}));
+    saveSnapshot(data);
+    show(data);
+  }catch(error){if(shownRevision==null)showError('Falha ao carregar.',String(error))}
+  finally{schedule()}
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(pollTimer);return}if(isLive())load()});
+function main(){
+  if(!firebaseConfig.apiKey||firebaseConfig.apiKey==='COLE_AQUI'){showError('Configuração do Firebase não preenchida.','Registre um app Web no console e copie os valores para painel/firebase-config.js');return}
+  const cached=readSnapshot();
+  if(cached){try{render(cached);shownRevision=cached.revision}catch{/* cópia antiga incompatível: segue para a busca */}}
+  load();
+}
 main();
