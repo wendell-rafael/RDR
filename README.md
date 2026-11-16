@@ -8,6 +8,54 @@ Aplicativo Flutter para organizar torneios informais de futebol (o famoso racha)
 - histórico de campeões e estatísticas
 - sincronização dos dados com Firebase Firestore
 
+## Para colaboradores
+
+Este repositório é público. Qualquer pessoa lê e faz fork; só quem tem permissão
+de escrita pode propor mudança no repositório principal.
+
+### O que tem aqui
+
+| Pasta | O que é |
+| --- | --- |
+| `lib/`, `android/` | aplicativo Flutter/Android |
+| `painel/` | site público do racha (`racha-dos-ruins.web.app`): placar, artilharia, recordes, perfis |
+| `painel/checkin/` | página de check-in (`/checkin/`), que depende das Cloud Functions |
+| `painel/admin/` | painel administrativo (não é publicado pelo deploy padrão do site) |
+| `functions/` | Cloud Functions do check-in e do kill switch de faturamento |
+| `firestore.rules` | regras do Firestore (um arquivo para o projeto inteiro) |
+| `tool/` | scripts de deploy, emuladores e testes de regras |
+
+**Não tem aqui:** o site e os dados da Copa CAESI (são outro projeto e outro
+repositório), a keystore de assinatura do Android e qualquer chave secreta.
+
+### Fluxo de contribuição
+
+1. Crie uma branch a partir da `master` (`git switch -c minha-mudanca`).
+2. Faça o commit e suba a branch.
+3. Abra um pull request. A `master` é protegida: não há push direto.
+4. Um mantenedor aprova. Depois do merge, a branch é apagada.
+
+### Antes de mexer em dados públicos
+
+O site lê `racha/public`, que é um espelho do documento completo sem o nível
+e as estrelas dos jogadores. Ao mudar `backup_service.dart` ou o painel
+administrativo, rode `tool/check_public_doc.sh` para confirmar que nenhum campo
+privado vaza para o espelho público.
+
+### O que cada tarefa exige
+
+| Tarefa | Precisa de |
+| --- | --- |
+| Ler o código, rodar `flutter test`, `npm test` e `node --test painel/test` | nada além do repositório |
+| Rodar o painel local com os dados reais | nada: a leitura de `racha/public` é pública |
+| Rodar o app e gravar dados na nuvem | conta Google cadastrada em `rdr_writers` |
+| Publicar regras, funções ou site | conta Google com acesso ao projeto `racha-dos-ruins` (`firebase login`) |
+| Cloud Functions (check-in) | plano Blaze ativo no projeto |
+| Gerar APK/AAB de release | keystore em `~/rdr-keystore/key.properties` (fora do repositório) |
+
+Sem a keystore, `flutter build apk --release` assina com a chave de debug: serve
+para testar, não para publicar na loja.
+
 ## Funcionalidades
 
 - Jogadores
@@ -141,8 +189,11 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 ## Observações sobre sincronização
 
-- A sincronização usa um documento no Firestore: `racha/main`.
-- A leitura desse documento é pública para alimentar o painel web.
+- A sincronização usa dois documentos no Firestore:
+	- `racha/main`: estado completo, inclui o nível e as estrelas dos jogadores.
+		Só quem está em `rdr_writers` lê ou grava.
+	- `racha/public`: espelho sem os campos privados. É o que o painel web lê,
+		sem autenticação.
 - A escrita exige uma conta Google verificada e o e-mail cadastrado na allowlist
   `rdr_writers`.
 - Em Configurações, você pode:
@@ -240,12 +291,13 @@ seria preciso verificação por telefone, que custa por SMS.
 | `checkin_events/{data}` | pública | allowlist `rdr_writers` |
 | `checkin_events/{data}/entries/{uid}` | pública | **ninguém** — só a Cloud Function |
 
+| `checkin_audit/{id}` | negada | negada — só a Cloud Function |
+| `checkin_rate`, `checkin_ip` | negada | negada — só a Cloud Function |
+
 Cada inscrição guarda `role` (`player` ou `keeper`), `name`, `uid` e o
 `createdAt` do servidor. Trocar de função regrava o `createdAt`: quem era o
 primeiro da linha não vira o primeiro goleiro na hora, passando na frente de
 quem pediu o gol antes. A posição é da fila, não da pessoa.
-| `checkin_audit/{id}` | negada | negada — só a Cloud Function |
-| `checkin_rate`, `checkin_ip` | negada | negada — só a Cloud Function |
 
 O id do evento é a data do jogo (`2026-09-19`). Como é derivado e não sorteado,
 criar o mesmo racha duas vezes é impossível: a segunda tentativa esbarra em
